@@ -1,0 +1,7 @@
+# dependencies
+node_modules/
+
+# env files
+.env
+backend-node/.env
+ai-backend/.env
