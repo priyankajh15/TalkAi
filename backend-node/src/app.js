@@ -9,6 +9,7 @@ const errorHandler = require("./middleware/errorHandler.middleware");
 const authRoutes = require("./routes/auth.routes");
 const protectedRoutes = require("./routes/protected.routes");
 const knowledgeRoutes = require("./routes/knowledge.routes");
+const healthRoutes = require("./routes/health.routes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -18,18 +19,10 @@ app.use(requestId);
 app.use(cors(corsConfig));
 app.use(globalLimiter);
 
-app.use("/auth", authRoutes);
-app.use("/protected", protectedRoutes);
-app.use("/knowledge", knowledgeRoutes);
-
-
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    service: "TalkAi backend"
-  });
-});
-
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/protected", protectedRoutes);
+app.use("/api/v1/knowledge", knowledgeRoutes);
+app.use("/health", healthRoutes);
 
 app.use(errorHandler);
 
