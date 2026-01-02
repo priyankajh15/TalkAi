@@ -1,75 +1,163 @@
+const mongoose = require("mongoose");
 const KnowledgeBase = require("../models/KnowledgeBase.model");
 
-// CREATE
-exports.createItem = async (req, res) => {
+/**
+ * CREATE
+ */
+exports.createItem = async (req, res, next) => {
   try {
     const { title, content, category } = req.body;
-
-    if (!content) {
-      return res.status(400).json({ message: "Content is required" });
-    }
-
+    
     const item = await KnowledgeBase.create({
       companyId: req.user.companyId,
       title,
-      category,
       content,
+      category
     });
 
-    res.status(201).json(item);
+    res.status(201).json({
+      success: true,
+      data: item
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
 
-// READ (LIST)
-exports.listItems = async (req, res) => {
+/**
+ * LIST (pagination + search)
+ */
+exports.listItems = async (req, res, next) => {
   try {
-    const items = await KnowledgeBase.find({
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const query = {
       companyId: req.user.companyId,
-      isActive: true,
-    }).sort({ createdAt: -1 });
+      isActive: true
+    };
 
-    res.json(items);
+    if (req.query.search) {
+      const escapedSearch = req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.$or = [
+        { title: new RegExp(escapedSearch, "i") },
+        { content: new RegExp(escapedSearch, "i") }
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      KnowledgeBase.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      KnowledgeBase.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      data: items,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
 
-// UPDATE
-exports.updateItem = async (req, res) => {
+/**
+ * UPDATE
+ */
+exports.updateItem = async (req, res, next) => {
   try {
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid item ID format"
+      });
+    }
+
+    // Check if req.body exists
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is required"
+      });
+    }
+
+    const { title, content, category } = req.body;
+    
+    // Validate at least one field is provided
+    if (title === undefined && content === undefined && category === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one field (title, content, category) is required"
+      });
+    }
+    
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (category !== undefined) updateData.category = category;
+    
     const item = await KnowledgeBase.findOneAndUpdate(
-      { _id: req.params.id, companyId: req.user.companyId },
-      req.body,
+      {
+        _id: req.params.id,
+        companyId: req.user.companyId,
+        isActive: true
+      },
+      updateData,
       { new: true }
     );
 
     if (!item) {
-      return res.status(404).json({ message: "Not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Knowledge item not found"
+      });
     }
 
-    res.json(item);
+    res.json({
+      success: true,
+      data: item
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
 
-// DELETE (soft delete)
-exports.deleteItem = async (req, res) => {
+/**
+ * DELETE (soft)
+ */
+exports.deleteItem = async (req, res, next) => {
   try {
     const item = await KnowledgeBase.findOneAndUpdate(
-      { _id: req.params.id, companyId: req.user.companyId },
+      {
+        _id: req.params.id,
+        companyId: req.user.companyId,
+        isActive: true
+      },
       { isActive: false },
       { new: true }
     );
 
     if (!item) {
-      return res.status(404).json({ message: "Not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Knowledge item not found"
+      });
     }
 
-    res.json({ message: "Deleted" });
+    res.json({
+      success: true,
+      message: "Knowledge item deleted"
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    next(err);
   }
 };
