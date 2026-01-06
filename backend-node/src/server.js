@@ -23,7 +23,7 @@ const startServer = async () => {
 };
 
 const shutdown = async (signal) => {
-  logger.info(`${signal}received. Shutting down gracefully...`);
+  logger.info(`${signal} received. Shutting down gracefully...`);
 
   server.close(async () => {
     logger.info("HTTP server closed");
