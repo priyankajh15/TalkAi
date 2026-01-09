@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import DashboardLayout from './DashboardLayout';
 import api from './api';
 
 const KnowledgeBase = () => {
-  const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingArticle, setEditingArticle] = useState(null);
   const [formData, setFormData] = useState({
@@ -13,36 +12,53 @@ const KnowledgeBase = () => {
     category: ''
   });
 
-  useEffect(() => {
-    fetchArticles();
-  }, []);
+  const queryClient = useQueryClient();
 
-  const fetchArticles = async () => {
-    try {
+  // ✅ USEQUERY: Fetch articles with automatic caching
+  const { data: articles = [], isLoading, error } = useQuery({
+    queryKey: ['knowledge'],
+    queryFn: async () => {
       const response = await api.get('/knowledge');
-      setArticles(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch articles:', error);
-    } finally {
-      setLoading(false);
+      return response.data.data || [];
     }
-  };
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingArticle) {
-        await api.put(`/knowledge/${editingArticle._id}`, formData);
-      } else {
-        await api.post('/knowledge', formData);
-      }
-      
+  // ✅ USEMUTATION: Create article
+  const createMutation = useMutation({
+    mutationFn: (newArticle) => api.post('/knowledge', newArticle),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['knowledge']); // Auto-refresh list
+      setFormData({ title: '', content: '', category: '' });
+      setShowForm(false);
+    }
+  });
+
+  // ✅ USEMUTATION: Update article
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/knowledge/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['knowledge']); // Auto-refresh list
       setFormData({ title: '', content: '', category: '' });
       setShowForm(false);
       setEditingArticle(null);
-      fetchArticles();
-    } catch (error) {
-      console.error('Failed to save article:', error);
+    }
+  });
+
+  // ✅ USEMUTATION: Delete article
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/knowledge/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['knowledge']); // Auto-refresh list
+    }
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (editingArticle) {
+      updateMutation.mutate({ id: editingArticle._id, data: formData });
+    } else {
+      createMutation.mutate(formData);
     }
   };
 
@@ -56,14 +72,9 @@ const KnowledgeBase = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this article?')) {
-      try {
-        await api.delete(`/knowledge/${id}`);
-        fetchArticles();
-      } catch (error) {
-        console.error('Failed to delete article:', error);
-      }
+      deleteMutation.mutate(id);
     }
   };
 
@@ -74,7 +85,8 @@ const KnowledgeBase = () => {
     });
   };
 
-  if (loading) {
+  // ✅ AUTOMATIC LOADING STATE
+  if (isLoading) {
     return (
       <div style={{ 
         minHeight: '100vh', 
@@ -89,34 +101,45 @@ const KnowledgeBase = () => {
     );
   }
 
-  return (
-    <div style={{ minHeight: '100vh', padding: '20px' }}>
-      {/* Header */}
-      <div className="glass" style={{
-        padding: '20px',
-        marginBottom: '30px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+  // ✅ AUTOMATIC ERROR STATE
+  if (error) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
       }}>
-        <div>
-          <h1 style={{ fontSize: '24px', marginBottom: '4px' }}>Knowledge Base</h1>
-          <p style={{ color: 'rgba(255,255,255,0.7)' }}>
-            Manage your AI knowledge articles
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <Link to="/dashboard" className="btn btn-secondary">
-            Back to Dashboard
-          </Link>
+        <div className="glass" style={{ padding: '40px', textAlign: 'center' }}>
+          <h2>Error loading knowledge base</h2>
+          <p style={{ color: '#999' }}>{error.message}</p>
           <button 
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => queryClient.invalidateQueries(['knowledge'])}
             className="btn btn-primary"
           >
-            {showForm ? 'Cancel' : 'Add Article'}
+            Retry
           </button>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div style={{ padding: '30px' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '30px' }}>
+          <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Knowledge Base</h1>
+          <p style={{ color: '#999', fontSize: '16px' }}>Manage your AI knowledge articles</p>
+          <div style={{ marginTop: '20px', textAlign: 'right' }}>
+            <button 
+              onClick={() => setShowForm(!showForm)}
+              className="btn btn-primary"
+            >
+              {showForm ? 'Cancel' : 'Add Article'}
+            </button>
+          </div>
+        </div>
 
       {/* Add/Edit Form */}
       {showForm && (
@@ -242,8 +265,9 @@ const KnowledgeBase = () => {
                         borderColor: 'rgba(239, 68, 68, 0.3)',
                         color: '#ef4444'
                       }}
+                      disabled={deleteMutation.isPending}
                     >
-                      Delete
+                      {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>
@@ -269,7 +293,8 @@ const KnowledgeBase = () => {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 

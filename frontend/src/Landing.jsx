@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faHeadset, faClipboardList, faHandshake, faShield, faBrain, faDatabase, faChartLine, faComments, faCode, faLock } from '@fortawesome/free-solid-svg-icons';
 
 const Landing = () => {
   const [openFaq, setOpenFaq] = useState(null);
@@ -130,25 +132,11 @@ const Landing = () => {
                 marginBottom: '30px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: 'white'
               }}>
-                <div style={{
-                  width: '30px',
-                  height: '30px',
-                  border: '3px solid white',
-                  borderRadius: '50%',
-                  position: 'relative'
-                }}>
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    background: 'white',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: '8px',
-                    left: '8px'
-                  }}></div>
-                </div>
+                <FontAwesomeIcon icon={faHeadset} />
               </div>
               <h3 style={{ fontSize: '24px', marginBottom: '20px' }}>Customer Support</h3>
               <p style={{ color: '#999', lineHeight: '1.6', marginBottom: '20px' }}>
@@ -170,28 +158,11 @@ const Landing = () => {
                 marginBottom: '30px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: 'white'
               }}>
-                <div style={{
-                  width: '24px',
-                  height: '30px',
-                  border: '3px solid white',
-                  borderRadius: '4px',
-                  position: 'relative'
-                }}>
-                  <div style={{
-                    width: '14px',
-                    height: '3px',
-                    background: 'white',
-                    margin: '6px auto 3px'
-                  }}></div>
-                  <div style={{
-                    width: '14px',
-                    height: '3px',
-                    background: 'white',
-                    margin: '3px auto'
-                  }}></div>
-                </div>
+                <FontAwesomeIcon icon={faClipboardList} />
               </div>
               <h3 style={{ fontSize: '24px', marginBottom: '20px' }}>Lead Generation</h3>
               <p style={{ color: '#999', lineHeight: '1.6', marginBottom: '20px' }}>
@@ -213,34 +184,11 @@ const Landing = () => {
                 marginBottom: '30px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                fontSize: '24px',
+                color: 'white'
               }}>
-                <div style={{
-                  width: '30px',
-                  height: '20px',
-                  border: '3px solid white',
-                  borderRadius: '15px',
-                  position: 'relative'
-                }}>
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    background: 'white',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: '3px',
-                    left: '4px'
-                  }}></div>
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    background: 'white',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: '3px',
-                    right: '4px'
-                  }}></div>
-                </div>
+                <FontAwesomeIcon icon={faHandshake} />
               </div>
               <h3 style={{ fontSize: '24px', marginBottom: '20px' }}>Sales Automation</h3>
               <p style={{ color: '#999', lineHeight: '1.6', marginBottom: '20px' }}>
@@ -287,42 +235,60 @@ const Landing = () => {
             gap: '25px'
           }}>
           <div className="glass" style={{ padding: '40px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '20px' }}>Multi-Tenant Architecture</h3>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <FontAwesomeIcon icon={faShield} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
+              <h3 style={{ margin: 0, fontSize: '20px' }}>Multi-Tenant Architecture</h3>
+            </div>
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Complete company isolation with role-based access control. Each organization gets their own secure environment.
             </p>
           </div>
 
           <div className="glass" style={{ padding: '40px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '20px' }}>Advanced Knowledge Base</h3>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <FontAwesomeIcon icon={faDatabase} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
+              <h3 style={{ margin: 0, fontSize: '20px' }}>Advanced Knowledge Base</h3>
+            </div>
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Dynamic knowledge management with real-time updates. Train your AI agents with company-specific information.
             </p>
           </div>
 
           <div className="glass" style={{ padding: '40px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '20px' }}>Call Analytics & Logging</h3>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <FontAwesomeIcon icon={faChartLine} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
+              <h3 style={{ margin: 0, fontSize: '20px' }}>Call Analytics & Logging</h3>
+            </div>
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Comprehensive call tracking, performance metrics, and detailed analytics for continuous improvement.
             </p>
           </div>
 
           <div className="glass" style={{ padding: '40px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '20px' }}>Voice & Text Integration</h3>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <FontAwesomeIcon icon={faComments} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
+              <h3 style={{ margin: 0, fontSize: '20px' }}>Voice & Text Integration</h3>
+            </div>
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Seamless speech-to-text and text-to-speech capabilities with natural language processing.
             </p>
           </div>
 
           <div className="glass" style={{ padding: '40px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '20px' }}>API-First Design</h3>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <FontAwesomeIcon icon={faCode} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
+              <h3 style={{ margin: 0, fontSize: '20px' }}>API-First Design</h3>
+            </div>
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               RESTful APIs for easy integration with existing systems, CRMs, and business tools.
             </p>
           </div>
 
           <div className="glass" style={{ padding: '40px' }}>
-            <h3 style={{ marginBottom: '20px', fontSize: '20px' }}>Enterprise Security</h3>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <FontAwesomeIcon icon={faLock} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
+              <h3 style={{ margin: 0, fontSize: '20px' }}>Enterprise Security</h3>
+            </div>
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               JWT authentication, data encryption, and compliance with enterprise security standards.
             </p>
@@ -419,93 +385,6 @@ const Landing = () => {
                 Launch your AI agents and monitor performance with real-time analytics and detailed reporting.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" style={{
-        padding: '100px 40px',
-        maxWidth: '1000px',
-        margin: '0 auto'
-      }}>
-        <h2 style={{
-          fontSize: '42px',
-          textAlign: 'center',
-          marginBottom: '20px',
-          fontWeight: '600'
-        }}>
-          Enterprise Pricing
-        </h2>
-        <p style={{
-          textAlign: 'center',
-          color: '#999',
-          fontSize: '18px',
-          marginBottom: '60px'
-        }}>
-          Flexible pricing plans designed for businesses of all sizes.
-        </p>
-        
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '30px'
-        }}>
-          <div className="glass" style={{ padding: '50px 40px', textAlign: 'center' }}>
-            <h3 style={{ fontSize: '24px', marginBottom: '10px' }}>Starter</h3>
-            <div style={{ fontSize: '48px', fontWeight: '700', marginBottom: '10px' }}>$99</div>
-            <p style={{ color: '#999', marginBottom: '30px' }}>per month</p>
-            <ul style={{ textAlign: 'left', color: '#ccc', lineHeight: '2', marginBottom: '40px' }}>
-              <li>Up to 1,000 calls/month</li>
-              <li>Basic knowledge base</li>
-              <li>Email support</li>
-              <li>Standard analytics</li>
-            </ul>
-            <Link to="/signup" className="btn btn-secondary" style={{ width: '100%' }}>Get Started</Link>
-          </div>
-
-          <div className="glass" style={{ 
-            padding: '50px 40px', 
-            textAlign: 'center',
-            border: '2px solid rgba(255,255,255,0.2)',
-            position: 'relative'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: '-15px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              padding: '8px 20px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '600'
-            }}>POPULAR</div>
-            <h3 style={{ fontSize: '24px', marginBottom: '10px' }}>Professional</h3>
-            <div style={{ fontSize: '48px', fontWeight: '700', marginBottom: '10px' }}>$299</div>
-            <p style={{ color: '#999', marginBottom: '30px' }}>per month</p>
-            <ul style={{ textAlign: 'left', color: '#ccc', lineHeight: '2', marginBottom: '40px' }}>
-              <li>Up to 10,000 calls/month</li>
-              <li>Advanced knowledge base</li>
-              <li>Priority support</li>
-              <li>Advanced analytics</li>
-              <li>API access</li>
-            </ul>
-            <Link to="/signup" className="btn btn-primary" style={{ width: '100%' }}>Get Started</Link>
-          </div>
-
-          <div className="glass" style={{ padding: '50px 40px', textAlign: 'center' }}>
-            <h3 style={{ fontSize: '24px', marginBottom: '10px' }}>Enterprise</h3>
-            <div style={{ fontSize: '48px', fontWeight: '700', marginBottom: '10px' }}>Custom</div>
-            <p style={{ color: '#999', marginBottom: '30px' }}>pricing</p>
-            <ul style={{ textAlign: 'left', color: '#ccc', lineHeight: '2', marginBottom: '40px' }}>
-              <li>Unlimited calls</li>
-              <li>Custom integrations</li>
-              <li>Dedicated support</li>
-              <li>Custom analytics</li>
-              <li>SLA guarantee</li>
-            </ul>
-            <button className="btn btn-secondary" style={{ width: '100%' }}>Contact Sales</button>
           </div>
         </div>
       </section>
