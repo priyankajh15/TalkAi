@@ -1,11 +1,17 @@
-import DashboardLayout from './DashboardLayout';
+import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhone } from '@fortawesome/free-solid-svg-icons';
+import { EmptyState } from '../../components/EmptyState';
+import { Card, Button } from '../../components';
+import { toast } from '../../components/Toast';
 
 const PhoneNumbers = () => {
+  const handleImportTwilio = () => {
+    toast.info('Twilio integration coming soon!');
+  };
   return (
     <DashboardLayout>
-      <div style={{ padding: '40px' }}>
+      <div style={{ padding: 'clamp(16px, 4vw, 40px)' }}>
       {/* Header */}
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
@@ -17,7 +23,7 @@ const PhoneNumbers = () => {
       </div>
 
       {/* Get Phone Number Section */}
-      <div className="glass" style={{ padding: '40px', marginBottom: '30px' }}>
+      <Card style={{ padding: '40px', marginBottom: '30px' }}>
         <h2 style={{ fontSize: '24px', marginBottom: '16px' }}>
           Get Your Phone Number
         </h2>
@@ -27,8 +33,8 @@ const PhoneNumbers = () => {
         
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', 
+          gap: 'clamp(15px, 3vw, 20px)',
           marginBottom: '30px'
         }}>
           <div>
@@ -45,38 +51,30 @@ const PhoneNumbers = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <button className="btn btn-primary">
+        <div style={{ display: 'flex', gap: 'clamp(10px, 2vw, 15px)', flexWrap: 'wrap' }}>
+          <Button onClick={() => toast.info('Twilio integration coming soon!')}>
             Import from Twilio
-          </button>
-          <button className="btn btn-secondary">
+          </Button>
+          <Button variant="secondary" onClick={() => toast.info('Exotel integration coming soon!')}>
             Import from Exotel (Indian +91)
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Phone Numbers List */}
-      <div className="glass" style={{ padding: '40px' }}>
+      <Card style={{ padding: '40px' }}>
         <h2 style={{ fontSize: '24px', marginBottom: '30px' }}>
           Your Phone Numbers
         </h2>
         
-        <div style={{
-          textAlign: 'center',
-          padding: '60px 20px',
-          color: '#666'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px', color: '#666' }}>
-            <FontAwesomeIcon icon={faPhone} />
-          </div>
-          <h3 style={{ fontSize: '20px', marginBottom: '10px', color: '#999' }}>
-            No phone numbers yet
-          </h3>
-          <p style={{ color: '#666' }}>
-            Purchase your first phone number to get started
-          </p>
-        </div>
-      </div>
+        <EmptyState
+          icon={faPhone}
+          title="No phone numbers yet"
+          description="Import your first phone number from Twilio or Exotel to enable voice capabilities and start making AI-powered calls."
+          actionText="Import from Twilio"
+          onAction={handleImportTwilio}
+        />
+      </Card>
       </div>
     </DashboardLayout>
   );

@@ -1,19 +1,20 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from './AuthContext';
-import Landing from './Landing';
-import Login from './Login';
-import Signup from './Signup';
-import Dashboard from './Dashboard';
-import KnowledgeBase from './KnowledgeBase';
-import PhoneNumbers from './PhoneNumbers';
-import BulkCampaigns from './BulkCampaigns';
-import CallLogs from './CallLogs';
-import Analytics from './Analytics';
-import BalancePlans from './BalancePlans';
-import ApiAccess from './ApiAccess';
-import Settings from './Settings';
-import Documentation from './Documentation';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Toaster } from './components/Toast';
+import Landing from './pages/Landing';
+import Login from './pages/auth/Login';
+import Signup from './pages/auth/Signup';
+import Dashboard from './pages/dashboard/Dashboard';
+import KnowledgeBase from './pages/dashboard/KnowledgeBase';
+import PhoneNumbers from './pages/dashboard/PhoneNumbers';
+import BulkCampaigns from './pages/dashboard/BulkCampaigns';
+import CallLogs from './pages/dashboard/CallLogs';
+import Analytics from './pages/dashboard/Analytics';
+import BalancePlans from './pages/dashboard/BalancePlans';
+import ApiAccess from './pages/dashboard/ApiAccess';
+import Settings from './pages/dashboard/Settings';
+import Documentation from './pages/dashboard/Documentation';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +71,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <Toaster />
         <Router>
           <Routes>
             <Route path="/" element={<Landing />} />
@@ -128,7 +130,7 @@ function App() {
                 <Settings />
               </ProtectedRoute>
             } />
-            <Route path="/documentation" element={
+            <Route path="/docs" element={
               <ProtectedRoute>
                 <Documentation />
               </ProtectedRoute>

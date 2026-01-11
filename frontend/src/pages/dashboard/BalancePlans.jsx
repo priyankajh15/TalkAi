@@ -1,9 +1,9 @@
-import DashboardLayout from './DashboardLayout';
+import DashboardLayout from '../../layouts/DashboardLayout';
 
 const BalancePlans = () => {
   return (
     <DashboardLayout>
-      <div style={{ padding: '40px' }}>
+      <div style={{ padding: 'clamp(16px, 4vw, 40px)' }}>
       {/* Header */}
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
@@ -16,7 +16,7 @@ const BalancePlans = () => {
 
       {/* Current Plan & Balance */}
       <div className="glass" style={{ padding: '40px', marginBottom: '30px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 'clamp(20px, 4vw, 30px)' }}>
           <div>
             <h3 style={{ fontSize: '18px', marginBottom: '15px' }}>Active Plan</h3>
             <div style={{ fontSize: '24px', fontWeight: '600', color: '#667eea', marginBottom: '10px' }}>Free</div>
@@ -51,7 +51,7 @@ const BalancePlans = () => {
         <h2 style={{ fontSize: '24px', marginBottom: '10px' }}>Voice AI Pricing</h2>
         <p style={{ color: '#999', fontSize: '14px', marginBottom: '30px' }}>Billed monthly</p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'clamp(15px, 3vw, 20px)' }}>
           {/* Starter */}
           <div className="glass" style={{ padding: '30px', textAlign: 'center' }}>
             <h3 style={{ fontSize: '20px', marginBottom: '10px' }}>Starter</h3>
@@ -144,7 +144,7 @@ const BalancePlans = () => {
         <h2 style={{ fontSize: '24px', marginBottom: '10px' }}>Chatbot Pricing</h2>
         <p style={{ color: '#999', fontSize: '14px', marginBottom: '30px' }}>Simple per-message pricing for all plans</p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 'clamp(15px, 3vw, 20px)' }}>
           <div style={{ textAlign: 'center', padding: '20px' }}>
             <h4 style={{ marginBottom: '10px' }}>Basic</h4>
             <p style={{ fontSize: '18px', fontWeight: '600' }}>$0.006 / message</p>

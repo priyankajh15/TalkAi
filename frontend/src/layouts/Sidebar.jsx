@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faBook, 
@@ -12,10 +12,12 @@ import {
   faCog, 
   faSignOutAlt 
 } from '@fortawesome/free-solid-svg-icons';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { logout } = useAuth();
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   const menuItems = [
     {
@@ -43,21 +45,40 @@ const Sidebar = () => {
   ];
 
   return (
-    <div 
-      style={{
-        width: '280px',
-        height: '100vh',
-        background: 'rgba(0,0,0,0.95)',
-        backdropFilter: 'blur(20px)',
-        borderRight: '1px solid rgba(255,255,255,0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        zIndex: 100
-      }}
-    >
+    <>
+      {/* Mobile Overlay */}
+      {isMobile && isOpen && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 99
+          }}
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div 
+        style={{
+          width: '280px',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.95)',
+          backdropFilter: 'blur(20px)',
+          borderRight: '1px solid rgba(255,255,255,0.1)',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'fixed',
+          left: isMobile ? (isOpen ? 0 : '-280px') : (isOpen ? 0 : '-280px'),
+          top: 0,
+          zIndex: 100,
+          transition: 'left 0.3s ease'
+        }}
+      >
       {/* Logo */}
       <div style={{
         padding: '30px 20px',
@@ -92,6 +113,9 @@ const Sidebar = () => {
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={() => {
+                  if (isMobile) onClose();
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -130,6 +154,9 @@ const Sidebar = () => {
         <div>
           <Link
             to="/settings"
+            onClick={() => {
+              if (isMobile) onClose();
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -192,7 +219,8 @@ const Sidebar = () => {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -1,21 +1,27 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadset, faClipboardList, faHandshake, faShield, faBrain, faDatabase, faChartLine, faComments, faCode, faLock } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faClipboardList, faHandshake, faShield, faBrain, faDatabase, faChartLine, faComments, faCode, faLock, faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { fadeIn } from '../utils/animations';
+import { Card, Button } from '../components';
 
 const Landing = () => {
   const [openFaq, setOpenFaq] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const navigate = useNavigate();
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
   };
   return (
-    <div style={{ minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', ...fadeIn }}>
       {/* Professional Header */}
       <header style={{
-        padding: '20px 40px',
+        padding: 'clamp(15px, 3vw, 20px) clamp(20px, 4vw, 40px)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -26,35 +32,88 @@ const Landing = () => {
         backdropFilter: 'blur(10px)',
         zIndex: 100
       }}>
-        <div style={{ fontSize: '24px', fontWeight: '700' }}>TalkAi</div>
-        <nav style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
-          <a href="#features" style={{ color: '#999', textDecoration: 'none' }}>Features</a>
-          <a href="#use-cases" style={{ color: '#999', textDecoration: 'none' }}>Use Cases</a>
-          <a href="#pricing" style={{ color: '#999', textDecoration: 'none' }}>Pricing</a>
-          <a href="#faq" style={{ color: '#999', textDecoration: 'none' }}>FAQ</a>
-          {user ? (
-            <>
-              <Link to="/dashboard" className="btn btn-secondary">Dashboard</Link>
-              <Link to="/" onClick={(e) => { e.preventDefault(); logout(); }} className="btn btn-primary">Logout</Link>
-            </>
-          ) : (
-            <>
-              <Link to="/login" style={{ color: '#999', textDecoration: 'none' }}>Sign In</Link>
-              <Link to="/signup" className="btn btn-primary">Get Started</Link>
-            </>
-          )}
-        </nav>
+        <div style={{ fontSize: 'clamp(20px, 4vw, 24px)', fontWeight: '700' }}>TalkAi</div>
+        
+        {/* Mobile Menu Button */}
+        {isMobile && (
+          <Button
+            variant="secondary"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              padding: '10px',
+              color: 'white'
+            }}
+          >
+            <FontAwesomeIcon icon={mobileMenuOpen ? faTimes : faBars} />
+          </Button>
+        )}
+        
+        {/* Desktop Navigation */}
+        {!isMobile && (
+          <nav style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+            <a href="#features" style={{ color: '#999', textDecoration: 'none' }}>Features</a>
+            <a href="#use-cases" style={{ color: '#999', textDecoration: 'none' }}>Use Cases</a>
+            <a href="#faq" style={{ color: '#999', textDecoration: 'none' }}>FAQ</a>
+            {user ? (
+              <>
+                <Button variant="secondary" onClick={() => navigate('/dashboard')}>Dashboard</Button>
+                <Button onClick={(e) => { e.preventDefault(); logout(); }}>Logout</Button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" style={{ color: '#999', textDecoration: 'none' }}>Sign In</Link>
+                <Button onClick={() => navigate('/signup')}>Get Started</Button>
+              </>
+            )}
+          </nav>
+        )}
+        
+        {/* Mobile Navigation Menu */}
+        {isMobile && mobileMenuOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            background: 'rgba(0,0,0,0.95)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderTop: 'none',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px'
+          }}>
+            <a href="#features" style={{ color: '#999', textDecoration: 'none', padding: '10px 0' }} onClick={() => setMobileMenuOpen(false)}>Features</a>
+            <a href="#use-cases" style={{ color: '#999', textDecoration: 'none', padding: '10px 0' }} onClick={() => setMobileMenuOpen(false)}>Use Cases</a>
+            <a href="#faq" style={{ color: '#999', textDecoration: 'none', padding: '10px 0' }} onClick={() => setMobileMenuOpen(false)}>FAQ</a>
+              {user ? (
+                <>
+                  <Button variant="secondary" style={{ marginTop: '10px' }} onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}>Dashboard</Button>
+                  <Button onClick={(e) => { e.preventDefault(); logout(); setMobileMenuOpen(false); }}>Logout</Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="secondary" style={{ marginTop: '10px' }} onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}>Sign In</Button>
+                  <Button onClick={() => { navigate('/signup'); setMobileMenuOpen(false); }}>Get Started</Button>
+                </>
+              )}
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
       <section style={{
-        padding: '80px 40px 60px',
+        padding: 'clamp(40px, 8vw, 80px) clamp(20px, 4vw, 40px) clamp(30px, 6vw, 60px)',
         textAlign: 'center',
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
         <h1 style={{
-          fontSize: '48px',
+          fontSize: 'clamp(28px, 6vw, 48px)',
           fontWeight: '700',
           marginBottom: '20px',
           lineHeight: '1.1',
@@ -65,7 +124,7 @@ const Landing = () => {
           Enterprise AI Communication Platform
         </h1>
         <p style={{
-          fontSize: '18px',
+          fontSize: 'clamp(16px, 3vw, 18px)',
           color: '#999',
           marginBottom: '40px',
           maxWidth: '600px',
@@ -74,19 +133,19 @@ const Landing = () => {
         }}>
           Build, deploy, and manage intelligent AI agents that handle customer interactions, support queries, and business communications with enterprise-grade security and scalability.
         </p>
-        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '50px' }}>
+        <div style={{ display: 'flex', gap: 'clamp(10px, 3vw, 15px)', justifyContent: 'center', marginBottom: '50px', flexWrap: 'wrap' }}>
           {user ? (
-            <Link to="/dashboard" className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '16px' }}>
+            <Button size="large" onClick={() => navigate('/dashboard')}>
               Go to Dashboard
-            </Link>
+            </Button>
           ) : (
             <>
-              <Link to="/signup" className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '16px' }}>
+              <Button size="large" onClick={() => navigate('/signup')}>
                 Get Started
-              </Link>
-              <Link to="/login" className="btn btn-secondary" style={{ padding: '14px 28px', fontSize: '16px' }}>
+              </Button>
+              <Button variant="secondary" size="large" onClick={() => navigate('/login')}>
                 Sign In
-              </Link>
+              </Button>
             </>
           )}
         </div>
@@ -94,13 +153,13 @@ const Landing = () => {
 
       {/* Use Cases Section */}
       <section id="use-cases" style={{
-        padding: '80px 40px',
+        padding: 'clamp(40px, 8vw, 80px) clamp(20px, 4vw, 40px)',
         background: 'rgba(255,255,255,0.02)',
         borderTop: '1px solid rgba(255,255,255,0.1)'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{
-            fontSize: '42px',
+            fontSize: 'clamp(28px, 6vw, 42px)',
             textAlign: 'center',
             marginBottom: '20px',
             fontWeight: '600'
@@ -110,20 +169,20 @@ const Landing = () => {
           <p style={{
             textAlign: 'center',
             color: '#999',
-            fontSize: '18px',
-            marginBottom: '80px',
+            fontSize: 'clamp(14px, 3vw, 18px)',
+            marginBottom: 'clamp(40px, 8vw, 80px)',
             maxWidth: '600px',
-            margin: '0 auto 80px'
+            margin: '0 auto clamp(40px, 8vw, 80px)'
           }}>
             From customer support to sales automation, TalkAi adapts to your specific business requirements.
           </p>
           
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '30px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap: 'clamp(20px, 4vw, 30px)'
           }}>
-            <div className="glass" style={{ padding: '50px 40px' }}>
+            <Card hover style={{ padding: 'clamp(30px, 6vw, 50px) clamp(20px, 4vw, 40px)' }}>
               <div style={{
                 width: '70px',
                 height: '70px',
@@ -147,35 +206,35 @@ const Landing = () => {
                 <li>Escalation to human agents</li>
                 <li>Multi-language support</li>
               </ul>
-            </div>
+            </Card>
 
-            <div className="glass" style={{ padding: '50px 40px' }}>
+            <Card hover style={{ padding: 'clamp(30px, 6vw, 50px) clamp(20px, 4vw, 40px)' }}>
               <div style={{
-                width: '70px',
-                height: '70px',
+                width: 'clamp(50px, 10vw, 70px)',
+                height: 'clamp(50px, 10vw, 70px)',
                 background: 'linear-gradient(135deg, #333 0%, #555 100%)',
                 borderRadius: '16px',
-                marginBottom: '30px',
+                marginBottom: 'clamp(20px, 4vw, 30px)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '24px',
+                fontSize: 'clamp(18px, 4vw, 24px)',
                 color: 'white'
               }}>
                 <FontAwesomeIcon icon={faClipboardList} />
               </div>
-              <h3 style={{ fontSize: '24px', marginBottom: '20px' }}>Lead Generation</h3>
-              <p style={{ color: '#999', lineHeight: '1.6', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: 'clamp(20px, 4vw, 24px)', marginBottom: '20px' }}>Lead Generation</h3>
+              <p style={{ color: '#999', lineHeight: '1.6', marginBottom: '20px', fontSize: 'clamp(14px, 3vw, 16px)' }}>
                 Qualify leads automatically through intelligent conversations. Capture contact information and schedule appointments.
               </p>
-              <ul style={{ color: '#ccc', lineHeight: '1.8' }}>
+              <ul style={{ color: '#ccc', lineHeight: '1.8', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>
                 <li>Automated lead qualification</li>
                 <li>CRM integration</li>
                 <li>Appointment scheduling</li>
               </ul>
-            </div>
+            </Card>
 
-            <div className="glass" style={{ padding: '50px 40px' }}>
+            <Card hover style={{ padding: 'clamp(30px, 6vw, 50px) clamp(20px, 4vw, 40px)' }}>
               <div style={{
                 width: '70px',
                 height: '70px',
@@ -199,19 +258,19 @@ const Landing = () => {
                 <li>Product demonstrations</li>
                 <li>Follow-up sequences</li>
               </ul>
-            </div>
+            </Card>
           </div>
         </div>
       </section>
 
       {/* Core Features Section */}
       <section id="features" style={{
-        padding: '100px 40px',
+        padding: 'clamp(50px, 10vw, 100px) clamp(20px, 4vw, 40px)',
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
         <h2 style={{
-          fontSize: '42px',
+          fontSize: 'clamp(28px, 6vw, 42px)',
           textAlign: 'center',
           marginBottom: '20px',
           fontWeight: '600'
@@ -221,20 +280,20 @@ const Landing = () => {
         <p style={{
           textAlign: 'center',
           color: '#999',
-          fontSize: '18px',
-          marginBottom: '80px',
+          fontSize: 'clamp(14px, 3vw, 18px)',
+          marginBottom: 'clamp(40px, 8vw, 80px)',
           maxWidth: '600px',
-          margin: '0 auto 80px'
+          margin: '0 auto clamp(40px, 8vw, 80px)'
         }}>
           Powerful features designed for enterprise deployment and scalability.
         </p>
         
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '25px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap: 'clamp(20px, 4vw, 25px)'
           }}>
-          <div className="glass" style={{ padding: '40px' }}>
+          <Card hover style={{ padding: 'clamp(25px, 5vw, 40px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <FontAwesomeIcon icon={faShield} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
               <h3 style={{ margin: 0, fontSize: '20px' }}>Multi-Tenant Architecture</h3>
@@ -242,9 +301,9 @@ const Landing = () => {
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Complete company isolation with role-based access control. Each organization gets their own secure environment.
             </p>
-          </div>
+          </Card>
 
-          <div className="glass" style={{ padding: '40px' }}>
+          <Card hover style={{ padding: '40px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <FontAwesomeIcon icon={faDatabase} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
               <h3 style={{ margin: 0, fontSize: '20px' }}>Advanced Knowledge Base</h3>
@@ -252,9 +311,9 @@ const Landing = () => {
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Dynamic knowledge management with real-time updates. Train your AI agents with company-specific information.
             </p>
-          </div>
+          </Card>
 
-          <div className="glass" style={{ padding: '40px' }}>
+          <Card hover style={{ padding: '40px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <FontAwesomeIcon icon={faChartLine} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
               <h3 style={{ margin: 0, fontSize: '20px' }}>Call Analytics & Logging</h3>
@@ -262,9 +321,9 @@ const Landing = () => {
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Comprehensive call tracking, performance metrics, and detailed analytics for continuous improvement.
             </p>
-          </div>
+          </Card>
 
-          <div className="glass" style={{ padding: '40px' }}>
+          <Card hover style={{ padding: '40px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <FontAwesomeIcon icon={faComments} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
               <h3 style={{ margin: 0, fontSize: '20px' }}>Voice & Text Integration</h3>
@@ -272,9 +331,9 @@ const Landing = () => {
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               Seamless speech-to-text and text-to-speech capabilities with natural language processing.
             </p>
-          </div>
+          </Card>
 
-          <div className="glass" style={{ padding: '40px' }}>
+          <Card hover style={{ padding: '40px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <FontAwesomeIcon icon={faCode} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
               <h3 style={{ margin: 0, fontSize: '20px' }}>API-First Design</h3>
@@ -282,9 +341,9 @@ const Landing = () => {
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               RESTful APIs for easy integration with existing systems, CRMs, and business tools.
             </p>
-          </div>
+          </Card>
 
-          <div className="glass" style={{ padding: '40px' }}>
+          <Card hover style={{ padding: '40px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <FontAwesomeIcon icon={faLock} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
               <h3 style={{ margin: 0, fontSize: '20px' }}>Enterprise Security</h3>
@@ -292,13 +351,13 @@ const Landing = () => {
             <p style={{ color: '#999', lineHeight: '1.6' }}>
               JWT authentication, data encryption, and compliance with enterprise security standards.
             </p>
-          </div>
+          </Card>
         </div>
       </section>
 
       {/* How It Works */}
       <section style={{
-        padding: '100px 40px',
+        padding: 'clamp(50px, 10vw, 100px) clamp(20px, 4vw, 40px)',
         background: 'rgba(255,255,255,0.02)',
         borderTop: '1px solid rgba(255,255,255,0.1)',
         borderBottom: '1px solid rgba(255,255,255,0.1)'
@@ -535,72 +594,65 @@ const Landing = () => {
         }}>
           Join forward-thinking companies using TalkAi to automate and enhance their customer interactions with enterprise-grade AI technology.
         </p>
-        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-          <Link to="/signup" className="btn btn-primary" style={{ padding: '18px 36px', fontSize: '18px' }}>
+        <div style={{ display: 'flex', gap: 'clamp(15px, 4vw, 20px)', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Button size="large" onClick={() => navigate('/signup')}>
             Get Started Today
-          </Link>
-          <button className="btn btn-secondary" style={{ padding: '18px 36px', fontSize: '18px' }}>
+          </Button>
+          <Button variant="secondary" size="large">
             Contact Sales
-          </button>
+          </Button>
         </div>
       </section>
 
       {/* Professional Footer */}
       <footer style={{
-        padding: '60px 40px 40px',
+        padding: 'clamp(40px, 6vw, 60px) clamp(20px, 4vw, 40px) clamp(20px, 4vw, 40px)',
         borderTop: '1px solid rgba(255,255,255,0.1)',
         background: 'rgba(255,255,255,0.02)'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Top Section */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '40px',
-            marginBottom: '40px'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? '20px' : '0',
+            marginBottom: 'clamp(30px, 5vw, 40px)'
           }}>
             <div>
-              <div style={{ fontSize: '24px', fontWeight: '700', marginBottom: '20px' }}>TalkAi</div>
-              <p style={{ color: '#999', lineHeight: '1.6' }}>
+              <div style={{ fontSize: 'clamp(20px, 4vw, 24px)', fontWeight: '700', marginBottom: '8px' }}>TalkAi</div>
+              <p style={{ color: '#999', lineHeight: '1.6', fontSize: 'clamp(13px, 2.5vw, 14px)', maxWidth: '300px' }}>
                 Enterprise AI Communication Platform for modern businesses.
               </p>
             </div>
             
-            <div>
-              <h4 style={{ marginBottom: '20px', fontSize: '16px' }}>Product</h4>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <a href="#features" style={{ color: '#999', textDecoration: 'none' }}>Features</a>
-                <a href="#pricing" style={{ color: '#999', textDecoration: 'none' }}>Pricing</a>
-                <a href="#use-cases" style={{ color: '#999', textDecoration: 'none' }}>Use Cases</a>
-              </div>
-            </div>
-            
-            <div>
-              <h4 style={{ marginBottom: '20px', fontSize: '16px' }}>Company</h4>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <a href="#" style={{ color: '#999', textDecoration: 'none' }}>About</a>
-                <a href="#" style={{ color: '#999', textDecoration: 'none' }}>Contact</a>
-                <a href="#" style={{ color: '#999', textDecoration: 'none' }}>Support</a>
-              </div>
-            </div>
-            
-            <div>
-              <h4 style={{ marginBottom: '20px', fontSize: '16px' }}>Legal</h4>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <a href="#" style={{ color: '#999', textDecoration: 'none' }}>Privacy Policy</a>
-                <a href="#" style={{ color: '#999', textDecoration: 'none' }}>Terms of Service</a>
-                <a href="#" style={{ color: '#999', textDecoration: 'none' }}>Security</a>
-              </div>
+            {/* Horizontal Navigation Links */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 'clamp(20px, 4vw, 30px)',
+              alignItems: 'center'
+            }}>
+              <a href="#features" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Features</a>
+              <a href="#use-cases" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Use Cases</a>
+              <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>About</a>
+              <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Contact</a>
+              <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Support</a>
+              <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Privacy</a>
+              <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Terms</a>
+              <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Security</a>
             </div>
           </div>
           
           <div style={{
             borderTop: '1px solid rgba(255,255,255,0.1)',
-            paddingTop: '30px',
+            paddingTop: 'clamp(20px, 4vw, 30px)',
             textAlign: 'center',
             color: '#666',
-            fontSize: '14px'
+            fontSize: 'clamp(12px, 2vw, 14px)'
           }}>
-            © 2024 TalkAi. All rights reserved. Enterprise AI Communication Platform.
+            © 2024 TalkAi. All rights reserved.
           </div>
         </div>
       </footer>

@@ -1,14 +1,37 @@
 import { useState } from 'react';
-import DashboardLayout from './DashboardLayout';
+import { useQuery } from '@tanstack/react-query';
+import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClipboardList } from '@fortawesome/free-solid-svg-icons';
+import { faClipboardList, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { SkeletonTable } from '../../components/Skeleton';
+import { EmptyState } from '../../components/EmptyState';
+import { useDebounce } from '../../hooks/useDebounce';
+import api from '../../services/api';
 
 const CallLogs = () => {
   const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const debouncedSearch = useDebounce(searchTerm, 400);
+
+  // Simulate call logs query with debounced search
+  const { data: callLogs = [], isLoading } = useQuery({
+    queryKey: ['call-logs', debouncedSearch],
+    queryFn: async () => {
+      // Simulate API call with search parameter
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return [];
+    }
+  });
+  
+  const handleViewDemo = () => {
+    console.log('View demo calls');
+  };
 
   return (
     <DashboardLayout>
-      <div style={{ padding: '40px' }}>
+      <div style={{ padding: 'clamp(16px, 4vw, 40px)' }}>
       {/* Header */}
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
@@ -25,7 +48,9 @@ const CallLogs = () => {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          marginBottom: showFilters ? '30px' : '0'
+          marginBottom: showFilters ? '30px' : '0',
+          flexWrap: 'wrap',
+          gap: '15px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <h3 style={{ fontSize: '18px' }}>Filters</h3>
@@ -36,6 +61,29 @@ const CallLogs = () => {
             >
               {showFilters ? 'Hide' : 'Show'}
             </button>
+          </div>
+          
+          {/* Search Input */}
+          <div style={{ position: 'relative', minWidth: '250px' }}>
+            <FontAwesomeIcon 
+              icon={faSearch} 
+              style={{ 
+                position: 'absolute', 
+                left: '12px', 
+                top: '50%', 
+                transform: 'translateY(-50%)', 
+                color: '#999',
+                fontSize: '14px'
+              }} 
+            />
+            <input
+              type="text"
+              placeholder="Search call logs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input"
+              style={{ paddingLeft: '40px', width: '100%' }}
+            />
           </div>
           
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
@@ -51,8 +99,8 @@ const CallLogs = () => {
         {showFilters && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+            gap: 'clamp(15px, 3vw, 20px)'
           }}>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
@@ -120,50 +168,51 @@ const CallLogs = () => {
       </div>
 
       {/* Call Logs Table */}
-      <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
-        <h2 style={{ padding: '30px 30px 20px', fontSize: '24px', margin: 0 }}>
-          Call Logs
-        </h2>
-        
-        {/* Table Header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
-          gap: '15px',
-          padding: '15px 30px',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
-          fontSize: '14px',
-          fontWeight: '600',
-          color: '#999'
-        }}>
-          <div>Call Date</div>
-          <div>Bot Name</div>
-          <div>From Number</div>
-          <div>To Number</div>
-          <div>Duration</div>
-          <div>Call Type</div>
-          <div>Status</div>
-          <div>Cost</div>
-          <div>Recording</div>
-        </div>
+      {isLoading ? (
+        <SkeletonTable rows={8} />
+      ) : (
+        <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
+          <h2 style={{ padding: '30px 30px 20px', fontSize: '24px', margin: 0 }}>
+            Call Logs
+          </h2>
+          
+          {!isMobile ? (
+            // Desktop Table View
+            <>
+              {/* Table Header */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                gap: '15px',
+                padding: '15px 30px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#999'
+              }}>
+                <div>Call Date</div>
+                <div>Bot Name</div>
+                <div>From Number</div>
+                <div>To Number</div>
+                <div>Duration</div>
+                <div>Call Type</div>
+                <div>Status</div>
+                <div>Cost</div>
+                <div>Recording</div>
+              </div>
+            </>
+          ) : null}
 
-        {/* Empty State */}
-        <div style={{
-          textAlign: 'center',
-          padding: '80px 20px',
-          color: '#666'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px', color: '#666' }}>
-            <FontAwesomeIcon icon={faClipboardList} />
-          </div>
-          <h3 style={{ fontSize: '20px', marginBottom: '10px', color: '#999' }}>
-            No call logs found
-          </h3>
-          <p style={{ color: '#666' }}>
-            Call logs will appear here once you start making calls
-          </p>
+          {/* Empty State */}
+          <EmptyState
+            icon={faClipboardList}
+            title="No call logs yet"
+            description="Your call history will appear here once you start making calls with your AI agents. Track performance, duration, and outcomes."
+            actionText="View Demo Calls"
+            onAction={handleViewDemo}
+          />
         </div>
-      </div>
+      )}
       </div>
     </DashboardLayout>
   );

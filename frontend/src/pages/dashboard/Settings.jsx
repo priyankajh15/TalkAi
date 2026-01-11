@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import DashboardLayout from './DashboardLayout';
+import DashboardLayout from '../../layouts/DashboardLayout';
 
 const Settings = () => {
   const [timezone, setTimezone] = useState('America/Los_Angeles');
@@ -22,7 +22,7 @@ const Settings = () => {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: '40px' }}>
+      <div style={{ padding: 'clamp(16px, 4vw, 40px)' }}>
       {/* Header */}
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>

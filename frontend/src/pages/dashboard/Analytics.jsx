@@ -1,15 +1,34 @@
 import { useState } from 'react';
-import DashboardLayout from './DashboardLayout';
+import { useQuery } from '@tanstack/react-query';
+import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChartLine, faChartBar } from '@fortawesome/free-solid-svg-icons';
+import api from '../../services/api';
 
 const Analytics = () => {
   const [dateRange, setDateRange] = useState('7');
   const [selectedBot, setSelectedBot] = useState('all');
 
+  // ✅ Auto-refresh analytics every 60 seconds
+  const { data: analyticsData } = useQuery({
+    queryKey: ['analytics', dateRange, selectedBot],
+    queryFn: async () => {
+      // Simulate API call - replace with real endpoint
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return {
+        totalCalls: 6,
+        totalDuration: '6.1 min',
+        avgDuration: '1.02 min',
+        totalAssistants: 0
+      };
+    },
+    refetchInterval: 60000, // Auto-refresh every 60 seconds
+    staleTime: 30000 // Consider fresh for 30 seconds
+  });
+
   return (
     <DashboardLayout>
-      <div style={{ padding: '40px' }}>
+      <div style={{ padding: 'clamp(16px, 4vw, 40px)' }}>
       {/* Header */}
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
@@ -94,27 +113,35 @@ const Analytics = () => {
       {/* Key Metrics */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '20px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+        gap: 'clamp(15px, 3vw, 20px)',
         marginBottom: '40px'
       }}>
         <div className="glass" style={{ padding: '30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>6</h3>
+          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>
+            {analyticsData?.totalCalls || 6}
+          </h3>
           <p style={{ color: '#999', fontSize: '14px' }}>Total Calls Count</p>
         </div>
         
         <div className="glass" style={{ padding: '30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>6.1 min</h3>
+          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>
+            {analyticsData?.totalDuration || '6.1 min'}
+          </h3>
           <p style={{ color: '#999', fontSize: '14px' }}>Total call duration</p>
         </div>
         
         <div className="glass" style={{ padding: '30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>1.02 min</h3>
+          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>
+            {analyticsData?.avgDuration || '1.02 min'}
+          </h3>
           <p style={{ color: '#999', fontSize: '14px' }}>Avg. Duration</p>
         </div>
         
         <div className="glass" style={{ padding: '30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>0</h3>
+          <h3 style={{ fontSize: '36px', marginBottom: '8px', color: '#667eea' }}>
+            {analyticsData?.totalAssistants || 0}
+          </h3>
           <p style={{ color: '#999', fontSize: '14px' }}>Total Assistants</p>
         </div>
       </div>
