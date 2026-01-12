@@ -64,7 +64,7 @@ const PublicRoute = ({ children }) => {
     );
   }
   
-  return children;
+  return user ? <Navigate to="/dashboard" /> : children;
 };
 
 function App() {

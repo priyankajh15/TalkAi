@@ -4,7 +4,7 @@ import HamburgerButton from './HamburgerButton';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
 const DashboardLayout = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   return (

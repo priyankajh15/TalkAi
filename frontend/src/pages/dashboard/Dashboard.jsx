@@ -26,7 +26,6 @@ const Dashboard = () => {
         {/* Header */}
         <div style={{ marginBottom: '30px' }}>
           <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Dashboard</h1>
-          <p style={{ color: '#999', fontSize: '16px' }}>Welcome back, {user?.name}</p>
         </div>
 
         {/* Stats Cards */}

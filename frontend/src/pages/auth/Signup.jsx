@@ -64,7 +64,7 @@ const Signup = () => {
     try {
       await signup(formData.email, formData.password, formData.companyName);
       toast.success('Account created successfully! Welcome to TalkAi!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       console.log('Signup error:', err.response?.data);
       let errorMessage;
