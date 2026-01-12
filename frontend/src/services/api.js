@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api/v1',
+  baseURL: process.env.NODE_ENV === 'production' 
+    ? 'https://talkai-appo.onrender.com/api/v1'
+    : 'http://localhost:5000/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
