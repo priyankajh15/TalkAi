@@ -3,6 +3,7 @@ export { Card } from './Card';
 export { Button } from './Button';
 export { Modal } from './Modal';
 export { Input } from './Input';
+export { default as LoadingScreen } from './LoadingScreen';
 
 // Specialized Components
 export { EmptyState } from './EmptyState';

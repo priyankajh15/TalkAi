@@ -1,20 +1,24 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from './components/Toast';
-import Landing from './pages/Landing';
-import Login from './pages/auth/Login';
-import Signup from './pages/auth/Signup';
-import Dashboard from './pages/dashboard/Dashboard';
-import KnowledgeBase from './pages/dashboard/KnowledgeBase';
-import PhoneNumbers from './pages/dashboard/PhoneNumbers';
-import BulkCampaigns from './pages/dashboard/BulkCampaigns';
-import CallLogs from './pages/dashboard/CallLogs';
-import Analytics from './pages/dashboard/Analytics';
-import BalancePlans from './pages/dashboard/BalancePlans';
-import ApiAccess from './pages/dashboard/ApiAccess';
-import Settings from './pages/dashboard/Settings';
-import Documentation from './pages/dashboard/Documentation';
+import { LoadingScreen } from './components';
+
+// Lazy load all pages
+const Landing = lazy(() => import('./pages/Landing'));
+const Login = lazy(() => import('./pages/auth/Login'));
+const Signup = lazy(() => import('./pages/auth/Signup'));
+const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
+const KnowledgeBase = lazy(() => import('./pages/dashboard/KnowledgeBase'));
+const PhoneNumbers = lazy(() => import('./pages/dashboard/PhoneNumbers'));
+const BulkCampaigns = lazy(() => import('./pages/dashboard/BulkCampaigns'));
+const CallLogs = lazy(() => import('./pages/dashboard/CallLogs'));
+const Analytics = lazy(() => import('./pages/dashboard/Analytics'));
+const BalancePlans = lazy(() => import('./pages/dashboard/BalancePlans'));
+const ApiAccess = lazy(() => import('./pages/dashboard/ApiAccess'));
+const Settings = lazy(() => import('./pages/dashboard/Settings'));
+const Documentation = lazy(() => import('./pages/dashboard/Documentation'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,18 +33,7 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }}>
-        <div className="glass" style={{ padding: '40px' }}>
-          Loading...
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
   
   return user ? children : <Navigate to="/login" />;
@@ -50,18 +43,7 @@ const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }}>
-        <div className="glass" style={{ padding: '40px' }}>
-          Loading...
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
   
   return user ? <Navigate to="/dashboard" /> : children;
@@ -73,7 +55,8 @@ function App() {
       <AuthProvider>
         <Toaster />
         <Router>
-          <Routes>
+          <Suspense fallback={<LoadingScreen />}>
+            <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={
               <PublicRoute>
@@ -135,7 +118,8 @@ function App() {
                 <Documentation />
               </ProtectedRoute>
             } />
-          </Routes>
+            </Routes>
+          </Suspense>
         </Router>
       </AuthProvider>
     </QueryClientProvider>
