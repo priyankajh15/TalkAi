@@ -2,7 +2,7 @@ const axios = require('axios');
 
 class AIService {
   constructor() {
-    this.aiBackendUrl = process.env.AI_BACKEND_URL || 'http://localhost:8000';
+    this.aiBackendUrl = process.env.AI_BACKEND_URL || 'https://talkai-ai-backend.onrender.com';
   }
 
   async processTextChat(message, companyName = 'Demo Company', context = null) {
