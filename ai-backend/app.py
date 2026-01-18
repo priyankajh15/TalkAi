@@ -18,7 +18,12 @@ app = FastAPI(
 # Configure CORS (Cross-Origin Resource Sharing)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5000"],  # Allow Node.js backend
+    allow_origins=[
+        "http://localhost:5000",  # Local Node.js backend
+        "https://talkai-appo.onrender.com",  # Production Node.js backend
+        "http://localhost:3000",  # Local frontend (for testing)
+        "https://talkai-frontend.onrender.com"  # Production frontend (if needed)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,11 +36,9 @@ app.include_router(ai_router.router)
 # Run the server
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    debug = os.getenv("DEBUG", "true").lower() == "true"
     
     uvicorn.run(
         "app:app",
         host="0.0.0.0",
-        port=port,
-        reload=debug
+        port=port
     )
