@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
+  faRobot,
   faBook, 
   faPhone, 
   faBullhorn, 
@@ -23,6 +24,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     {
       section: 'Voice AI Setup',
       items: [
+        { path: '/voice-ai-assistants', icon: faRobot, label: 'Voice AI Assistants' },
         { path: '/knowledge', icon: faBook, label: 'Knowledge Base' }
       ]
     },
@@ -84,7 +86,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         padding: '30px 20px',
         borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}>
-        <Link to="/dashboard" style={{
+        <Link to="/voice-ai-assistants" style={{
           fontSize: '24px',
           fontWeight: '700',
           color: 'white',

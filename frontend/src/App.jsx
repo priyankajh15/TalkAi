@@ -9,6 +9,7 @@ import { LoadingScreen } from './components';
 const Landing = lazy(() => import('./pages/Landing'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
+const VoiceAIAssistants = lazy(() => import('./pages/dashboard/VoiceAIAssistants'));
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
 const KnowledgeBase = lazy(() => import('./pages/dashboard/KnowledgeBase'));
 const PhoneNumbers = lazy(() => import('./pages/dashboard/PhoneNumbers'));
@@ -70,7 +71,12 @@ function App() {
             } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <Dashboard />
+                <Navigate to="/voice-ai-assistants" />
+              </ProtectedRoute>
+            } />
+            <Route path="/voice-ai-assistants" element={
+              <ProtectedRoute>
+                <VoiceAIAssistants />
               </ProtectedRoute>
             } />
             <Route path="/knowledge" element={

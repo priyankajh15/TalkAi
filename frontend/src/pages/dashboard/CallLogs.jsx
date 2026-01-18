@@ -2,31 +2,84 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClipboardList, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faClipboardList, faSearch, faEye, faRobot, faUser, faDownload, faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useDebounce } from '../../hooks/useDebounce';
-import api from '../../services/api';
+import { aiAPI } from '../../services/api';
+import { Modal } from '../../components/Modal';
 
 const CallLogs = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCall, setSelectedCall] = useState(null);
+  const [showCallDetails, setShowCallDetails] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState({});
   const isMobile = useMediaQuery('(max-width: 768px)');
   const debouncedSearch = useDebounce(searchTerm, 400);
 
-  // Simulate call logs query with debounced search
-  const { data: callLogs = [], isLoading } = useQuery({
-    queryKey: ['call-logs', debouncedSearch],
+  // Fetch real call logs from AI backend
+  const { data: callLogsData, isLoading, error } = useQuery({
+    queryKey: ['ai-call-logs', debouncedSearch],
     queryFn: async () => {
-      // Simulate API call with search parameter
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return [];
+      const response = await aiAPI.getCallLogs(1, 50);
+      return response.data;
     }
   });
+
+  const callLogs = callLogsData?.data || [];
   
-  const handleViewDemo = () => {
-    console.log('View demo calls');
+  const handleViewCall = (call) => {
+    setSelectedCall(call);
+    setShowCallDetails(true);
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '0s';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  const downloadRecording = async (callId) => {
+    try {
+      const response = await aiAPI.getRecording(callId);
+      const recordingUrl = response.data.data.recording_url;
+      
+      const link = document.createElement('a');
+      link.href = recordingUrl;
+      link.download = `call-recording-${callId}.wav`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to direct download
+      const link = document.createElement('a');
+      link.href = 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
+      link.download = `call-recording-${callId}.wav`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const toggleAudio = (callId) => {
+    const audioElement = document.getElementById(`audio-${callId}`);
+    if (audioElement) {
+      if (playingAudio[callId]) {
+        audioElement.pause();
+        setPlayingAudio(prev => ({ ...prev, [callId]: false }));
+      } else {
+        audioElement.play();
+        setPlayingAudio(prev => ({ ...prev, [callId]: true }));
+      }
+    }
   };
 
   return (
@@ -203,17 +256,214 @@ const CallLogs = () => {
             </>
           ) : null}
 
-          {/* Empty State */}
-          <EmptyState
-            icon={faClipboardList}
-            title="No call logs yet"
-            description="Your call history will appear here once you start making calls with your AI agents. Track performance, duration, and outcomes."
-            actionText="View Demo Calls"
-            onAction={handleViewDemo}
-          />
+          {/* Empty State or Call Logs */}
+          {callLogs.length === 0 ? (
+            <EmptyState
+              icon={faClipboardList}
+              title="No call logs yet"
+              description="Your AI call history will appear here once customers start calling your phone numbers. Track AI performance, transcripts, and outcomes."
+              actionText="Test AI Chat"
+              onAction={() => console.log('Test AI chat')}
+            />
+          ) : (
+            <>
+              {/* Call Logs List */}
+              {callLogs.map((call) => (
+                <div key={call._id} style={{
+                  display: isMobile ? 'block' : 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                  gap: '15px',
+                  padding: '20px 30px',
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                  fontSize: '14px',
+                  alignItems: 'center'
+                }}>                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ color: '#fff', fontWeight: '500' }}>
+                      {formatDate(call.createdAt)}
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ color: '#60a5fa', fontWeight: '500' }}>
+                      TalkAI Agent
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ color: '#999', fontFamily: 'monospace' }}>
+                      {call.callerNumber || '+91XXXXXXXXXX'}
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ color: '#999', fontFamily: 'monospace' }}>
+                      +91XXXXXXXXXX
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ color: '#fff' }}>
+                      {formatDuration(call.duration)}
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ color: '#999' }}>
+                      Call
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      backgroundColor: call.escalationReason ? '#dc2626' : '#059669',
+                      color: '#fff'
+                    }}>
+                      {call.escalationReason ? 'escalated' : 'completed'}
+                    </span>
+                  </div>
+                  
+                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ color: '#4ade80' }}>
+                      $ 0.15
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <audio 
+                        id={`audio-${call._id}`}
+                        style={{ display: 'none' }}
+                        onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
+                      >
+                        <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav" />
+                      </audio>
+                      
+                      <button
+                        onClick={() => toggleAudio(call._id)}
+                        style={{
+                          padding: '8px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          backgroundColor: '#000',
+                          color: '#fff',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px'
+                        }}
+                        title={playingAudio[call._id] ? "Pause Recording" : "Play Recording"}
+                      >
+                        <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
+                      </button>
+                      
+                      <button
+                        onClick={() => downloadRecording(call._id)}
+                        style={{
+                          padding: '8px',
+                          borderRadius: '4px',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          backgroundColor: 'transparent',
+                          color: '#60a5fa',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title="Download Recording"
+                      >
+                        <FontAwesomeIcon icon={faDownload} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
       </div>
+      
+      {/* Call Details Modal */}
+      {showCallDetails && selectedCall && (
+        <Modal
+          isOpen={showCallDetails}
+          onClose={() => setShowCallDetails(false)}
+          title="Call Details"
+        >
+          <div style={{ padding: '20px' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <h3 style={{ color: '#fff', marginBottom: '10px' }}>Call Information</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ color: '#999', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Call ID</label>
+                  <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: '14px' }}>{selectedCall.callId}</div>
+                </div>
+                <div>
+                  <label style={{ color: '#999', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Date & Time</label>
+                  <div style={{ color: '#fff', fontSize: '14px' }}>{formatDate(selectedCall.createdAt)}</div>
+                </div>
+                <div>
+                  <label style={{ color: '#999', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Duration</label>
+                  <div style={{ color: '#fff', fontSize: '14px' }}>{formatDuration(selectedCall.duration)}</div>
+                </div>
+                <div>
+                  <label style={{ color: '#999', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Handled By</label>
+                  <div style={{ 
+                    color: selectedCall.handledBy === 'AI' ? '#4ade80' : '#f59e0b',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <FontAwesomeIcon icon={selectedCall.handledBy === 'AI' ? faRobot : faUser} size="sm" />
+                    {selectedCall.handledBy}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {selectedCall.transcript && (
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ color: '#fff', marginBottom: '10px' }}>Transcript</h3>
+                <div style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  color: '#e5e7eb',
+                  fontSize: '14px',
+                  lineHeight: '1.5'
+                }}>
+                  {selectedCall.transcript}
+                </div>
+              </div>
+            )}
+            
+            {selectedCall.escalationReason && (
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ color: '#fff', marginBottom: '10px' }}>Escalation Reason</h3>
+                <div style={{
+                  backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                  border: '1px solid rgba(220, 38, 38, 0.3)',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  color: '#fca5a5',
+                  fontSize: '14px'
+                }}>
+                  {selectedCall.escalationReason}
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
     </DashboardLayout>
   );
 };

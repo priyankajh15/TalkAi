@@ -81,6 +81,22 @@ body {
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* Fix dropdown options visibility */
+select.input {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+select.input option {
+  background: #1a1a1a;
+  color: white;
+  padding: 8px;
+}
+
+select.input option:hover {
+  background: #333333;
+}
+
 /* Animation keyframes */
 @keyframes fadeIn {
   to {
