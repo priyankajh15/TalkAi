@@ -7,7 +7,6 @@ class ChatRequest(BaseModel):
     context: dict = None
 
 class ChatResponse(BaseModel):
-    model_config = {"protected_namespaces": ()}
     ai_response: str
     confidence: float
     should_escalate: bool
