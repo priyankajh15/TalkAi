@@ -1,12 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 class ChatRequest(BaseModel):
     message: str
     company_name: str = "Demo Company"
-    context: dict = None
+    context: Optional[dict] = None
 
 class ChatResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     ai_response: str
     confidence: float
     should_escalate: bool
@@ -16,7 +17,7 @@ class ChatResponse(BaseModel):
 class VoiceCallRequest(BaseModel):
     company_name: str = "Demo Company"
     voice: str = "ekta"
-    context: dict = None
+    context: Optional[dict] = None
 
 class VoiceCallResponse(BaseModel):
     transcript: str
