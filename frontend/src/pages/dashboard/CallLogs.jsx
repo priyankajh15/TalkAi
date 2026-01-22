@@ -29,7 +29,7 @@ const CallLogs = () => {
   });
 
   const callLogs = callLogsData?.data || [];
-  
+
   const handleViewCall = (call) => {
     setSelectedCall(call);
     setShowCallDetails(true);
@@ -50,7 +50,7 @@ const CallLogs = () => {
     try {
       const response = await aiAPI.getRecording(callId);
       const recordingUrl = response.data.data.recording_url;
-      
+
       const link = document.createElement('a');
       link.href = recordingUrl;
       link.download = `call-recording-${callId}.wav`;
@@ -85,312 +85,312 @@ const CallLogs = () => {
   return (
     <DashboardLayout>
       <div style={{ padding: 'clamp(16px, 4vw, 40px)' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
-          Call Logs
-        </h1>
-        <p style={{ color: '#999', fontSize: '16px' }}>
-          View and analyze your call history
-        </p>
-      </div>
-
-      {/* Filters Section */}
-      <div className="glass" style={{ padding: '30px', marginBottom: '30px' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: showFilters ? '30px' : '0',
-          flexWrap: 'wrap',
-          gap: '15px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <h3 style={{ fontSize: '18px' }}>Filters</h3>
-            <button 
-              onClick={() => setShowFilters(!showFilters)}
-              className="btn btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '12px' }}
-            >
-              {showFilters ? 'Hide' : 'Show'}
-            </button>
-          </div>
-          
-          {/* Search Input */}
-          <div style={{ position: 'relative', minWidth: '250px' }}>
-            <FontAwesomeIcon 
-              icon={faSearch} 
-              style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: '#999',
-                fontSize: '14px'
-              }} 
-            />
-            <input
-              type="text"
-              placeholder="Search call logs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input"
-              style={{ paddingLeft: '40px', width: '100%' }}
-            />
-          </div>
-          
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <select className="input" style={{ width: '80px', padding: '8px' }}>
-              <option>25</option>
-              <option>50</option>
-              <option>100</option>
-            </select>
-            <button className="btn btn-secondary">CSV</button>
-          </div>
+        {/* Header */}
+        <div style={{ marginBottom: '40px' }}>
+          <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
+            Call Logs
+          </h1>
+          <p style={{ color: '#999', fontSize: '16px' }}>
+            View and analyze your call history
+          </p>
         </div>
 
-        {showFilters && (
+        {/* Filters Section */}
+        <div className="glass" style={{ padding: '30px', marginBottom: '30px' }}>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
-            gap: 'clamp(15px, 3vw, 20px)'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: showFilters ? '30px' : '0',
+            flexWrap: 'wrap',
+            gap: '15px'
           }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
-                Call Status
-              </label>
-              <select className="input">
-                <option>All Statuses</option>
-                <option>Completed</option>
-                <option>Failed</option>
-                <option>In Progress</option>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <h3 style={{ fontSize: '18px' }}>Filters</h3>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="btn btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+              >
+                {showFilters ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div style={{ position: 'relative', minWidth: '250px' }}>
+              <FontAwesomeIcon
+                icon={faSearch}
+                style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#999',
+                  fontSize: '14px'
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Search call logs..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input"
+                style={{ paddingLeft: '40px', width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+              <select className="input" style={{ width: '80px', padding: '8px' }}>
+                <option>25</option>
+                <option>50</option>
+                <option>100</option>
               </select>
+              <button className="btn btn-secondary">CSV</button>
             </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
-                Channel Type
-              </label>
-              <select className="input">
-                <option>All Channels</option>
-                <option>Inbound</option>
-                <option>Outbound</option>
-              </select>
+          </div>
+
+          {showFilters && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+              gap: 'clamp(15px, 3vw, 20px)'
+            }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
+                  Call Status
+                </label>
+                <select className="input">
+                  <option>All Statuses</option>
+                  <option>Completed</option>
+                  <option>Failed</option>
+                  <option>In Progress</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
+                  Channel Type
+                </label>
+                <select className="input">
+                  <option>All Channels</option>
+                  <option>Inbound</option>
+                  <option>Outbound</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
+                  Call Transferred
+                </label>
+                <select className="input">
+                  <option>All</option>
+                  <option>Yes</option>
+                  <option>No</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
+                  Duration (Min)
+                </label>
+                <input type="number" placeholder="Min" className="input" />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
+                  Duration (Max)
+                </label>
+                <input type="number" placeholder="Max" className="input" />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
+                  Start Date
+                </label>
+                <input type="date" className="input" />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
+                  End Date
+                </label>
+                <input type="date" className="input" />
+              </div>
             </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
-                Call Transferred
-              </label>
-              <select className="input">
-                <option>All</option>
-                <option>Yes</option>
-                <option>No</option>
-              </select>
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
-                Duration (Min)
-              </label>
-              <input type="number" placeholder="Min" className="input" />
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
-                Duration (Max)
-              </label>
-              <input type="number" placeholder="Max" className="input" />
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
-                Start Date
-              </label>
-              <input type="date" className="input" />
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
-                End Date
-              </label>
-              <input type="date" className="input" />
-            </div>
+          )}
+        </div>
+
+        {/* Call Logs Table */}
+        {isLoading ? (
+          <SkeletonTable rows={8} />
+        ) : (
+          <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
+            <h2 style={{ padding: '30px 30px 20px', fontSize: '24px', margin: 0 }}>
+              Call Logs
+            </h2>
+
+            {!isMobile ? (
+              // Desktop Table View
+              <>
+                {/* Table Header */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                  gap: '15px',
+                  padding: '15px 30px',
+                  borderBottom: '1px solid rgba(255,255,255,0.1)',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#999'
+                }}>
+                  <div>Call Date</div>
+                  <div>Bot Name</div>
+                  <div>From Number</div>
+                  <div>To Number</div>
+                  <div>Duration</div>
+                  <div>Call Type</div>
+                  <div>Status</div>
+                  <div>Cost</div>
+                  <div>Recording</div>
+                </div>
+              </>
+            ) : null}
+
+            {/* Empty State or Call Logs */}
+            {callLogs.length === 0 ? (
+              <EmptyState
+                icon={faClipboardList}
+                title="No call logs yet"
+                description="Your AI call history will appear here once customers start calling your phone numbers. Track AI performance, transcripts, and outcomes."
+                actionText="Test AI Chat"
+                onAction={() => console.log('Test AI chat')}
+              />
+            ) : (
+              <>
+                {/* Call Logs List */}
+                {callLogs.map((call) => (
+                  <div key={call._id} style={{
+                    display: isMobile ? 'block' : 'grid',
+                    gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                    gap: '15px',
+                    padding: '20px 30px',
+                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    fontSize: '14px',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <div style={{ color: '#fff', fontWeight: '500' }}>
+                        {formatDate(call.createdAt)}
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <div style={{ color: '#60a5fa', fontWeight: '500' }}>
+                        TalkAI Agent
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <div style={{ color: '#999', fontFamily: 'monospace' }}>
+                        {call.callerNumber || '+91XXXXXXXXXX'}
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <div style={{ color: '#999', fontFamily: 'monospace' }}>
+                        +91XXXXXXXXXX
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <div style={{ color: '#fff' }}>
+                        {formatDuration(call.duration)}
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <div style={{ color: '#999' }}>
+                        Call
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        backgroundColor: call.escalationReason ? '#dc2626' : '#059669',
+                        color: '#fff'
+                      }}>
+                        {call.escalationReason ? 'escalated' : 'completed'}
+                      </span>
+                    </div>
+
+                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                      <div style={{ color: '#4ade80' }}>
+                        $ 0.15
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <audio
+                          id={`audio-${call._id}`}
+                          style={{ display: 'none' }}
+                          onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
+                        >
+                          <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav" />
+                        </audio>
+
+                        <button
+                          onClick={() => toggleAudio(call._id)}
+                          style={{
+                            padding: '8px',
+                            borderRadius: '50%',
+                            border: 'none',
+                            backgroundColor: '#000',
+                            color: '#fff',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '32px',
+                            height: '32px'
+                          }}
+                          title={playingAudio[call._id] ? "Pause Recording" : "Play Recording"}
+                        >
+                          <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
+                        </button>
+
+                        <button
+                          onClick={() => downloadRecording(call._id)}
+                          style={{
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            backgroundColor: 'transparent',
+                            color: '#60a5fa',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="Download Recording"
+                        >
+                          <FontAwesomeIcon icon={faDownload} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>
 
-      {/* Call Logs Table */}
-      {isLoading ? (
-        <SkeletonTable rows={8} />
-      ) : (
-        <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
-          <h2 style={{ padding: '30px 30px 20px', fontSize: '24px', margin: 0 }}>
-            Call Logs
-          </h2>
-          
-          {!isMobile ? (
-            // Desktop Table View
-            <>
-              {/* Table Header */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
-                gap: '15px',
-                padding: '15px 30px',
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#999'
-              }}>
-                <div>Call Date</div>
-                <div>Bot Name</div>
-                <div>From Number</div>
-                <div>To Number</div>
-                <div>Duration</div>
-                <div>Call Type</div>
-                <div>Status</div>
-                <div>Cost</div>
-                <div>Recording</div>
-              </div>
-            </>
-          ) : null}
-
-          {/* Empty State or Call Logs */}
-          {callLogs.length === 0 ? (
-            <EmptyState
-              icon={faClipboardList}
-              title="No call logs yet"
-              description="Your AI call history will appear here once customers start calling your phone numbers. Track AI performance, transcripts, and outcomes."
-              actionText="Test AI Chat"
-              onAction={() => console.log('Test AI chat')}
-            />
-          ) : (
-            <>
-              {/* Call Logs List */}
-              {callLogs.map((call) => (
-                <div key={call._id} style={{
-                  display: isMobile ? 'block' : 'grid',
-                  gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
-                  gap: '15px',
-                  padding: '20px 30px',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  fontSize: '14px',
-                  alignItems: 'center'
-                }}>                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <div style={{ color: '#fff', fontWeight: '500' }}>
-                      {formatDate(call.createdAt)}
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <div style={{ color: '#60a5fa', fontWeight: '500' }}>
-                      TalkAI Agent
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <div style={{ color: '#999', fontFamily: 'monospace' }}>
-                      {call.callerNumber || '+91XXXXXXXXXX'}
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <div style={{ color: '#999', fontFamily: 'monospace' }}>
-                      +91XXXXXXXXXX
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <div style={{ color: '#fff' }}>
-                      {formatDuration(call.duration)}
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <div style={{ color: '#999' }}>
-                      Call
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <span style={{
-                      padding: '4px 8px',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      backgroundColor: call.escalationReason ? '#dc2626' : '#059669',
-                      color: '#fff'
-                    }}>
-                      {call.escalationReason ? 'escalated' : 'completed'}
-                    </span>
-                  </div>
-                  
-                  <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
-                    <div style={{ color: '#4ade80' }}>
-                      $ 0.15
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <audio 
-                        id={`audio-${call._id}`}
-                        style={{ display: 'none' }}
-                        onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
-                      >
-                        <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav" />
-                      </audio>
-                      
-                      <button
-                        onClick={() => toggleAudio(call._id)}
-                        style={{
-                          padding: '8px',
-                          borderRadius: '50%',
-                          border: 'none',
-                          backgroundColor: '#000',
-                          color: '#fff',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '32px',
-                          height: '32px'
-                        }}
-                        title={playingAudio[call._id] ? "Pause Recording" : "Play Recording"}
-                      >
-                        <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
-                      </button>
-                      
-                      <button
-                        onClick={() => downloadRecording(call._id)}
-                        style={{
-                          padding: '8px',
-                          borderRadius: '4px',
-                          border: '1px solid rgba(255,255,255,0.2)',
-                          backgroundColor: 'transparent',
-                          color: '#60a5fa',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}
-                        title="Download Recording"
-                      >
-                        <FontAwesomeIcon icon={faDownload} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-      </div>
-      
       {/* Call Details Modal */}
       {showCallDetails && selectedCall && (
         <Modal
@@ -416,7 +416,7 @@ const CallLogs = () => {
                 </div>
                 <div>
                   <label style={{ color: '#999', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Handled By</label>
-                  <div style={{ 
+                  <div style={{
                     color: selectedCall.handledBy === 'AI' ? '#4ade80' : '#f59e0b',
                     fontSize: '14px',
                     display: 'flex',
@@ -429,7 +429,7 @@ const CallLogs = () => {
                 </div>
               </div>
             </div>
-            
+
             {selectedCall.transcript && (
               <div style={{ marginBottom: '20px' }}>
                 <h3 style={{ color: '#fff', marginBottom: '10px' }}>Transcript</h3>
@@ -445,7 +445,7 @@ const CallLogs = () => {
                 </div>
               </div>
             )}
-            
+
             {selectedCall.escalationReason && (
               <div style={{ marginBottom: '20px' }}>
                 <h3 style={{ color: '#fff', marginBottom: '10px' }}>Escalation Reason</h3>

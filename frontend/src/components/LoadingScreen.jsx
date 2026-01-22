@@ -1,13 +1,13 @@
 const LoadingScreen = () => {
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: 'center',
       background: '#000000'
     }}>
-      <div className="glass" style={{ 
+      <div className="glass" style={{
         padding: '40px 60px',
         textAlign: 'center'
       }}>

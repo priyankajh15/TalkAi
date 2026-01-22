@@ -28,14 +28,14 @@ const queryClient = new QueryClient({
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}>
         <div className="glass" style={{ padding: '40px' }}>
           Loading...
@@ -43,20 +43,20 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   return user ? children : <Navigate to="/login" />;
 };
 
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}>
         <div className="glass" style={{ padding: '40px' }}>
           Loading...
@@ -64,7 +64,7 @@ const PublicRoute = ({ children }) => {
       </div>
     );
   }
-  
+
   return user ? <Navigate to="/dashboard" /> : children;
 };
 
@@ -141,7 +141,7 @@ function App() {
                 <Documentation />
               </ProtectedRoute>
             } />
-            </Routes>
+          </Routes>
         </Router>
       </AuthProvider>
     </QueryClientProvider>

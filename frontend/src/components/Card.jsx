@@ -1,12 +1,12 @@
-export const Card = ({ 
-  children, 
-  hover = false, 
-  onClick, 
-  className = '', 
+export const Card = ({
+  children,
+  hover = false,
+  onClick,
+  className = '',
   style = {},
   padding = 'clamp(20px, 4vw, 30px)'
 }) => (
-  <div 
+  <div
     className={`glass ${className}`}
     onClick={onClick}
     style={{

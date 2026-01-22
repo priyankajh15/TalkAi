@@ -42,14 +42,14 @@ const Dashboard = () => {
               <h3 style={{ fontSize: '32px', marginBottom: '8px', color: '#667eea' }}>0</h3>
               <p style={{ color: '#999' }}>Total Calls</p>
             </Card>
-            
+
             <Card hover style={{ textAlign: 'center' }}>
               <h3 style={{ fontSize: '32px', marginBottom: '8px', color: '#667eea' }}>
                 {knowledgeStats?.totalArticles || 0}
               </h3>
               <p style={{ color: '#999' }}>Knowledge Articles</p>
             </Card>
-            
+
             <Card hover style={{ textAlign: 'center' }}>
               <h3 style={{ fontSize: '32px', marginBottom: '8px', color: '#10b981' }}>Active</h3>
               <p style={{ color: '#999' }}>System Status</p>
@@ -68,11 +68,11 @@ const Dashboard = () => {
             <Button size="large">
               View Call Logs
             </Button>
-            
+
             <Button variant="secondary" size="large">
               Manage Knowledge
             </Button>
-            
+
             <Button variant="secondary" size="large">
               Analytics
             </Button>
