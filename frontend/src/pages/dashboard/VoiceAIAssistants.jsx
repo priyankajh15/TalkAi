@@ -49,7 +49,10 @@ const VoiceAIAssistants = () => {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll to bottom when messages change, not on initial load
+    if (messages.length > 1) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   const handleSendMessage = async () => {
