@@ -75,14 +75,19 @@ export const aiAPI = {
 export const voiceAPI = {
   // Make voice call
   makeCall: (callData) => {
-    const baseURL = process.env.NODE_ENV === 'production' 
-      ? 'https://talkai-appo.onrender.com'
-      : 'http://localhost:5000';
+    // Force production URL for Vercel deployment
+    const baseURL = window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000'
+      : 'https://talkai-appo.onrender.com';
+    
+    const token = localStorage.getItem('token');
+    console.log('Making call to:', baseURL);
+    console.log('Token present:', !!token);
     
     return axios.post(`${baseURL}/api/voice/make-call`, callData, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       }
     });
   }
