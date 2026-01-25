@@ -11,14 +11,20 @@ let server;
 
 const startServer = async () => {
   try {
-    await connectDB();
-
+    // Start server first, then connect to DB
     server = app.listen(PORT, () => {
       logger.info(`TalkAi backend running on port ${PORT}`);
     });
+    
+    // Connect to DB after server is running
+    await connectDB();
+    logger.info('Database connected successfully');
   } catch (err) {
     logger.error("Failed to start server", { error: err.message });
-    process.exit(1);
+    // Don't exit - let server run without DB for basic functionality
+    if (!server) {
+      process.exit(1);
+    }
   }
 };
 
