@@ -1,29 +1,15 @@
 const express = require('express');
 const router = express.Router();
+const aiController = require('../controllers/ai.controller');
+const authMiddleware = require('../middleware/auth.middleware');
 
-const auth = require('../middleware/auth.middleware');
-const role = require('../middleware/role.middleware');
-const controller = require('../controllers/ai.controller');
+// Chat with AI (requires authentication)
+router.post('/chat', authMiddleware, aiController.chat);
 
-// AI Chat endpoint
-router.post('/chat', auth, controller.processChat);
+// Get available voices (requires authentication)
+router.get('/voices', authMiddleware, aiController.getVoices);
 
-// AI Voice processing endpoint  
-router.post('/process-voice', auth, controller.processVoiceCall);
-
-// Get available voices
-router.get('/voices', auth, controller.getVoices);
-
-// Get call logs with AI data
-router.get('/call-logs', auth, controller.getCallLogs);
-
-// Get call recording
-router.get('/recording/:callId', auth, controller.getCallRecording);
-
-// Knowledge base routes
-router.post('/knowledge/upload-pdf', auth, controller.uploadPDF);
-router.post('/knowledge/add-website', auth, controller.addWebsite);
-router.get('/knowledge/files', auth, controller.getKnowledgeFiles);
-router.delete('/knowledge/file/:fileId', auth, controller.deleteKnowledgeFile);
+// Synthesize speech (requires authentication)
+router.post('/synthesize', authMiddleware, aiController.synthesize);
 
 module.exports = router;

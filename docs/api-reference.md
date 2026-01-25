@@ -26,8 +26,8 @@ Create new company and admin user.
 ```json
 {
   "companyName": "Acme Corp",
-  "email": "admin@acme.com",
-  "password": "SecurePass123!"
+  "email": "admin@example.com",
+  "password": "<your_secure_password>"
 }
 ```
 
@@ -53,8 +53,8 @@ Authenticate user and get JWT token.
 **Request:**
 ```json
 {
-  "email": "admin@acme.com",
-  "password": "SecurePass123!"
+  "email": "admin@example.com",
+  "password": "<your_secure_password>"
 }
 ```
 

@@ -71,4 +71,21 @@ export const aiAPI = {
     api.delete(`/ai/knowledge/file/${fileId}`)
 };
 
+// Voice API functions
+export const voiceAPI = {
+  // Make voice call
+  makeCall: (callData) => {
+    const baseURL = process.env.NODE_ENV === 'production' 
+      ? 'https://talkai-appo.onrender.com'
+      : 'http://localhost:5000';
+    
+    return axios.post(`${baseURL}/api/voice/make-call`, callData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+  }
+};
+
 export default api;

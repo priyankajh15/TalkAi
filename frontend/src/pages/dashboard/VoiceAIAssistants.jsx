@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faMicrophone, faRobot, faUser, faPlay, faPause, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faMicrophone, faRobot, faUser, faPlay, faPause, faUpload, faPhone, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { toast } from '../../components/Toast';
-import { aiAPI } from '../../services/api';
+import api, { voiceAPI } from '../../services/api';
 
 const VoiceAIAssistants = () => {
   const [messages, setMessages] = useState([
@@ -18,30 +17,23 @@ const VoiceAIAssistants = () => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('');
-  const [selectedVoice, setSelectedVoice] = useState('ekta');
+  const [selectedLanguage, setSelectedLanguage] = useState('auto');
+  const [selectedVoice, setSelectedVoice] = useState('priyanshu');
   const [selectedModel, setSelectedModel] = useState('gpt-4-mini');
   const [selectedSTT, setSelectedSTT] = useState('azure');
   const [isRecording, setIsRecording] = useState(false);
   const [audioFile, setAudioFile] = useState(null);
+  const [showCallDialog, setShowCallDialog] = useState(false);
+  const [callData, setCallData] = useState({ receiverName: '', companyName: '', phoneNumber: '', message: '', escalationNumber: '' });
   
   const messagesEndRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
 
-  // Get available voices
-  const { data: voicesData } = useQuery({
-    queryKey: ['ai-voices'],
-    queryFn: async () => {
-      const response = await aiAPI.getVoices();
-      return response.data;
-    }
-  });
-
-  const voices = voicesData?.voices || [
-    { name: 'ekta', gender: 'female', language: 'en-IN' },
-    { name: 'priyanka', gender: 'female', language: 'en-IN' },
-    { name: 'anuj', gender: 'male', language: 'en-IN' },
-    { name: 'priyanshu', gender: 'male', language: 'en-IN' }
+  const voices = [
+    { name: 'priyanshu', gender: 'male', personality: 'Professional, Friendly', description: 'Warm but professional tone' },
+    { name: 'tanmay', gender: 'male', personality: 'Casual, Energetic', description: 'Upbeat and conversational' },
+    { name: 'ekta', gender: 'female', personality: 'Formal, Polite', description: 'Very respectful and structured' },
+    { name: 'priyanka', gender: 'female', personality: 'Technical, Expert', description: 'Detailed technical explanations' }
   ];
 
   const scrollToBottom = () => {
@@ -58,39 +50,115 @@ const VoiceAIAssistants = () => {
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      content: inputMessage,
-      timestamp: new Date()
-    };
+    // Show call dialog instead of sending chat message
+    setCallData({ ...callData, message: inputMessage });
+    setShowCallDialog(true);
+  };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
+  const handleMakeCall = async () => {
+    if (!callData.receiverName || !callData.companyName || !callData.phoneNumber) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     setIsLoading(true);
-
     try {
-      const response = await aiAPI.chat(inputMessage, {
-        voice: selectedVoice,
-        language: selectedLanguage,
-        model: selectedModel,
-        stt_provider: selectedSTT
+      const response = await voiceAPI.makeCall({
+        targetNumber: callData.phoneNumber,
+        callInformation: callData.message,
+        companyName: callData.companyName,
+        receiverName: callData.receiverName,
+        escalationNumber: callData.escalationNumber,
+        voiceSettings: {
+          personality: selectedVoice,
+          language: selectedLanguage,
+          model: selectedModel,
+          stt: selectedSTT
+        }
       });
 
-      const aiMessage = {
-        id: Date.now() + 1,
-        type: 'ai',
-        content: response.data.data.ai_response,
-        timestamp: new Date(),
-        confidence: response.data.data.confidence
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
+      if (response.data.success) {
+        toast.success(`Voice call initiated to ${callData.receiverName}!`);
+        
+        // Add call message to chat
+        const callMessage = {
+          id: Date.now(),
+          type: 'user',
+          content: `Voice call initiated to ${callData.receiverName} (${callData.phoneNumber})`,
+          timestamp: new Date(),
+          isCall: true
+        };
+        setMessages(prev => [...prev, callMessage]);
+        
+        // Add AI confirmation
+        const aiMessage = {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: `Call initiated successfully! The recipient will receive a call with your message: "${callData.message}"`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiMessage]);
+        
+        setShowCallDialog(false);
+        setInputMessage('');
+        setCallData({ receiverName: '', companyName: '', phoneNumber: '', message: '', escalationNumber: '' });
+      } else {
+        toast.error('Failed to initiate call: ' + response.data.message);
+      }
     } catch (error) {
-      toast.error('Failed to get AI response');
+      toast.error('Error making call: ' + error.message);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleTestVoice = async () => {
+    setIsLoading(true);
+    try {
+      const testMessage = getTestMessage(selectedVoice, selectedLanguage);
+      
+      // Add test message to chat
+      const testChatMessage = {
+        id: Date.now(),
+        type: 'ai',
+        content: ` Testing ${selectedVoice.charAt(0).toUpperCase() + selectedVoice.slice(1)} voice: "${testMessage}"`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, testChatMessage]);
+      
+      toast.success(`Voice test: ${selectedVoice} would say this message`);
+    } catch (error) {
+      toast.error('Voice test failed: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getTestMessage = (personality, language) => {
+    const testMessages = {
+      priyanshu: {
+        auto: "Hello! I'm Priyanshu, your professional and friendly AI assistant.",
+        'en-IN': "Hello! I'm Priyanshu, your professional and friendly AI assistant.",
+        'hi-IN': "Namaste! Main Priyanshu hun, aapka professional aur friendly AI assistant."
+      },
+      tanmay: {
+        auto: "Hey there! I'm Tanmay, your energetic AI assistant! I'm super excited to help!",
+        'en-IN': "Hey there! I'm Tanmay, your energetic AI assistant! I'm super excited to help!",
+        'hi-IN': "Hey! Main Tanmay hun, aapka energetic AI assistant! Main bahut excited hun!"
+      },
+      ekta: {
+        auto: "Good day. I am Ekta, your formal and polite AI assistant.",
+        'en-IN': "Good day. I am Ekta, your formal and polite AI assistant.",
+        'hi-IN': "Namaskar. Main Ekta hun, aapki formal aur polite AI assistant."
+      },
+      priyanka: {
+        auto: "Greetings. I'm Priyanka, your technical expert AI assistant.",
+        'en-IN': "Greetings. I'm Priyanka, your technical expert AI assistant.",
+        'hi-IN': "Namaskar. Main Priyanka hun, aapki technical expert AI assistant."
+      }
+    };
+    
+    return testMessages[personality]?.[language] || testMessages[personality]?.auto || "Hello! This is a test message.";
   };
 
   const handleVoiceUpload = async (file) => {
@@ -169,17 +237,7 @@ const VoiceAIAssistants = () => {
               gap: '10px'
             }}>
               <FontAwesomeIcon icon={faRobot} style={{ color: '#667eea' }} />
-              <h3 style={{ fontSize: '18px', margin: 0 }}>AI Chat Interface</h3>
-              <span style={{ 
-                marginLeft: 'auto',
-                fontSize: '12px',
-                color: '#999',
-                padding: '4px 8px',
-                backgroundColor: 'rgba(102, 126, 234, 0.2)',
-                borderRadius: '12px'
-              }}>
-                Mock Mode
-              </span>
+              <h3 style={{ fontSize: '18px', margin: 0 }}>Voice AI Assistant</h3>
             </div>
 
             {/* Messages */}
@@ -345,18 +403,16 @@ const VoiceAIAssistants = () => {
                   onChange={(e) => setSelectedLanguage(e.target.value)}
                   className="input"
                 >
-                  <option value="">No languages selected</option>
-                  <option value="en-US">English (US)</option>
-                  <option value="en-IN">English (India)</option>
-                  <option value="hi-IN">Hindi</option>
-                  <option value="es-ES">Spanish</option>
+                  <option value="auto">Auto (Hindi + English)</option>
+                  <option value="hi-IN">Hindi Only</option>
+                  <option value="en-IN">English Only</option>
                 </select>
               </div>
 
               {/* Voice (TTS) */}
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
-                  Voice (TTS)
+                  Voice Assistant
                 </label>
                 <select 
                   value={selectedVoice}
@@ -365,10 +421,18 @@ const VoiceAIAssistants = () => {
                 >
                   {voices.map((voice) => (
                     <option key={voice.name} value={voice.name}>
-                      {voice.name} ({voice.gender})
+                      {voice.name.charAt(0).toUpperCase() + voice.name.slice(1)} ({voice.personality})
                     </option>
                   ))}
                 </select>
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#999', 
+                  marginTop: '4px',
+                  fontStyle: 'italic'
+                }}>
+                  {voices.find(v => v.name === selectedVoice)?.description}
+                </div>
               </div>
 
               {/* AI Model */}
@@ -408,16 +472,163 @@ const VoiceAIAssistants = () => {
               {/* Test Voice Button */}
               <button 
                 className="btn btn-secondary"
-                onClick={() => toast.info('Voice test feature coming soon!')}
+                onClick={handleTestVoice}
                 style={{ width: '100%' }}
+                disabled={isLoading}
               >
                 <FontAwesomeIcon icon={faPlay} style={{ marginRight: '8px' }} />
-                Test Voice
+                {isLoading ? 'Testing...' : 'Preview Voice'}
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Call Dialog */}
+      {showCallDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="glass" style={{
+            padding: '30px',
+            maxWidth: '500px',
+            width: '90%',
+            borderRadius: '15px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <h3 style={{ fontSize: '20px', margin: 0 }}>
+                <FontAwesomeIcon icon={faPhone} style={{ marginRight: '10px', color: '#667eea' }} />
+                Make Voice Call
+              </h3>
+              <button
+                onClick={() => setShowCallDialog(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#999',
+                  fontSize: '20px',
+                  cursor: 'pointer'
+                }}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                Message to deliver:
+              </label>
+              <div style={{
+                padding: '12px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                color: '#e5e7eb'
+              }}>
+                {callData.message}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '15px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                  Receiver Name *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter receiver's name"
+                  value={callData.receiverName}
+                  onChange={(e) => setCallData({ ...callData, receiverName: e.target.value })}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  placeholder="+91123456789"
+                  value={callData.phoneNumber}
+                  onChange={(e) => setCallData({ ...callData, phoneNumber: e.target.value })}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter your company name"
+                  value={callData.companyName}
+                  onChange={(e) => setCallData({ ...callData, companyName: e.target.value })}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                  Escalation Number (Optional)
+                </label>
+                <input
+                  type="tel"
+                  placeholder="+919876543210 (for human agent transfer)"
+                  value={callData.escalationNumber}
+                  onChange={(e) => setCallData({ ...callData, escalationNumber: e.target.value })}
+                  className="input"
+                  style={{ width: '100%' }}
+                />
+                <small style={{ color: '#999', fontSize: '12px' }}>
+                  Enter with country code (+91 for India) or just the 10-digit number
+                </small>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              marginTop: '25px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowCallDialog(false)}
+                className="btn btn-secondary"
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMakeCall}
+                className="btn btn-primary"
+                disabled={isLoading}
+              >
+                <FontAwesomeIcon icon={faPhone} style={{ marginRight: '8px' }} />
+                {isLoading ? 'Making Call...' : 'Make Call'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

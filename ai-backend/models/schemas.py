@@ -2,9 +2,12 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra='allow')  # Allow extra fields
     message: str
     company_name: str = "Demo Company"
     context: Optional[dict] = None
+    knowledge_articles: Optional[list] = None
+    company_info: Optional[dict] = None
 
 class ChatResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())

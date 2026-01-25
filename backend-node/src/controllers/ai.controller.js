@@ -1,225 +1,121 @@
-const aiService = require('../services/ai.service');
-const CallLog = require('../models/CallLog.model');
-const Company = require('../models/Company.model');
+const axios = require('axios');
+const KnowledgeBase = require('../models/KnowledgeBase.model');
+const logger = require('../config/logger');
+
+const AI_BACKEND_URL = process.env.AI_BACKEND_URL || 'http://localhost:8000';
 
 /**
- * Process text chat with AI
+ * Chat with AI using knowledge base context
  */
-exports.processChat = async (req, res, next) => {
+exports.chat = async (req, res) => {
   try {
-    const { message, context } = req.body;
+    const { message, company_name } = req.body;
+    const companyId = req.user.companyId;
+
+    // Search knowledge base for relevant articles (escape regex special characters)
+    const escapedMessage = message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
-    // Get company info
-    const company = await Company.findById(req.user.companyId);
-    const companyName = company?.companyName || 'Demo Company';
+    const knowledgeArticles = await KnowledgeBase.find({
+      companyId,
+      isActive: true,
+      $or: [
+        { title: { $regex: escapedMessage, $options: 'i' } },
+        { content: { $regex: escapedMessage, $options: 'i' } }
+      ]
+    }).limit(3);
 
-    // Process with AI
-    const aiResult = await aiService.processTextChat(message, companyName, context);
-
-    // Save to call log (optional for text chat)
-    const callLog = await CallLog.create({
-      companyId: req.user.companyId,
-      callId: `chat_${Date.now()}`,
-      transcript: message,
-      handledBy: 'AI',
-      startTime: new Date(),
-      endTime: new Date(),
-      duration: 0
-    });
-
-    res.json({
-      success: true,
-      data: {
-        ...aiResult,
-        callLogId: callLog._id
+    // Forward to AI backend with knowledge context
+    const aiResponse = await axios.post(`${AI_BACKEND_URL}/ai/chat`, {
+      message,
+      company_name: company_name || 'Your Company',
+      knowledge_articles: knowledgeArticles,
+      company_info: {
+        name: company_name || 'Your Company',
+        business_hours: '9 AM - 6 PM EST'
       }
     });
+
+    return res.json({
+      success: true,
+      data: {
+        ai_response: aiResponse.data.ai_response,
+        confidence: aiResponse.data.confidence || 0.95,
+        knowledge_used: knowledgeArticles.length > 0,
+        knowledge_count: knowledgeArticles.length
+      }
+    });
+
   } catch (error) {
-    next(error);
+    logger.error('AI chat error', {
+      requestId: req.id,
+      error: error.message,
+      message: req.body?.message
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'AI service temporarily unavailable',
+      requestId: req.id
+    });
   }
 };
 
 /**
- * Process voice call with AI
+ * Get available voices
  */
-exports.processVoiceCall = async (req, res, next) => {
+exports.getVoices = async (req, res) => {
   try {
-    const { audioBuffer, voice = 'ekta', context = {} } = req.body;
+    const aiResponse = await axios.get(`${AI_BACKEND_URL}/ai/voices`);
     
-    // Get company info
-    const company = await Company.findById(req.user.companyId);
-    const companyName = company?.companyName || 'Demo Company';
-
-    // Process with AI
-    const aiResult = await aiService.processVoiceCall(audioBuffer, companyName, voice, context);
-
-    // Save to call log
-    const callLog = await CallLog.create({
-      companyId: req.user.companyId,
-      callId: `voice_${Date.now()}`,
-      transcript: aiResult.transcript,
-      handledBy: aiResult.should_escalate ? 'Human' : 'AI',
-      escalationReason: aiResult.should_escalate ? 'AI recommended escalation' : null,
-      startTime: new Date(),
-      endTime: new Date(),
-      duration: Math.round(aiResult.total_processing_time)
-    });
-
-    res.json({
+    return res.json({
       success: true,
-      data: {
-        ...aiResult,
-        callLogId: callLog._id
-      }
+      data: aiResponse.data
     });
+
   } catch (error) {
-    next(error);
+    logger.error('Get voices error', {
+      requestId: req.id,
+      error: error.message
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Voice service temporarily unavailable',
+      requestId: req.id
+    });
   }
 };
 
 /**
- * Get available AI voices
+ * Synthesize speech
  */
-exports.getVoices = async (req, res, next) => {
+exports.synthesize = async (req, res) => {
   try {
-    const { provider, gender } = req.query;
-    const voices = await aiService.getAvailableVoices(provider, gender);
+    const { text, voice = 'ekta' } = req.body;
 
-    res.json({
-      success: true,
-      data: voices
+    const aiResponse = await axios.post(`${AI_BACKEND_URL}/ai/synthesize`, {
+      text,
+      voice
+    }, {
+      headers: { 'Content-Type': 'application/json' }
     });
-  } catch (error) {
-    next(error);
-  }
-};
 
-/**
- * Get call logs with AI data
- */
-exports.getCallLogs = async (req, res, next) => {
-  try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const query = {
-      companyId: req.user.companyId
-    };
-
-    const [callLogs, total] = await Promise.all([
-      CallLog.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      CallLog.countDocuments(query)
-    ]);
-
-    res.json({
+    return res.json({
       success: true,
-      data: callLogs,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      data: aiResponse.data
     });
+
   } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Get call recording
- */
-exports.getCallRecording = async (req, res, next) => {
-  try {
-    const { callId } = req.params;
-    const recording = await aiService.getCallRecording(callId);
-
-    res.json({
-      success: true,
-      data: recording
+    logger.error('Speech synthesis error', {
+      requestId: req.id,
+      error: error.message,
+      text: req.body?.text
     });
-  } catch (error) {
-    next(error);
-  }
-};
 
-/**
- * Upload PDF to knowledge base
- */
-exports.uploadPDF = async (req, res, next) => {
-  try {
-    // Mock implementation - forward to AI backend later
-    res.json({
-      success: true,
-      data: {
-        file_id: `pdf_${Date.now()}`,
-        filename: req.file?.originalname || 'document.pdf',
-        size: '1.2 MB',
-        status: 'processed',
-        message: 'PDF uploaded successfully'
-      }
+    return res.status(500).json({
+      success: false,
+      message: 'Speech synthesis temporarily unavailable',
+      requestId: req.id
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Add website to knowledge base
- */
-exports.addWebsite = async (req, res, next) => {
-  try {
-    const { url } = req.body;
-    
-    res.json({
-      success: true,
-      data: {
-        file_id: `web_${Date.now()}`,
-        url: url,
-        size: '0.5 MB',
-        status: 'processed',
-        message: 'Website content added successfully'
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Get knowledge base files
- */
-exports.getKnowledgeFiles = async (req, res, next) => {
-  try {
-    res.json({
-      success: true,
-      data: {
-        files: [],
-        total_size: '0 MB',
-        storage_limit: '10 MB'
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Delete knowledge base file
- */
-exports.deleteKnowledgeFile = async (req, res, next) => {
-  try {
-    const { fileId } = req.params;
-    
-    res.json({
-      success: true,
-      message: 'File deleted successfully'
-    });
-  } catch (error) {
-    next(error);
   }
 };
