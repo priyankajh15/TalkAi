@@ -104,33 +104,34 @@ exports.makeVoiceCall = async (req, res) => {
  */
 exports.handleVoiceCall = async (req, res) => {
   try {
-    const { CallSid } = req.body;
+    const { CallSid, From, To } = req.body;
     
-    // Security: Minimal webhook logging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Webhook received for CallSid:', CallSid);
-    }
+    // Enhanced logging for phone call debugging
+    console.log('=== PHONE CALL WEBHOOK ===');
+    console.log('CallSid:', CallSid);
+    console.log('From:', From);
+    console.log('To:', To);
+    console.log('Environment:', process.env.NODE_ENV);
     
     const callData = global.activeCalls?.[CallSid];
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Call data found:', callData);
-    }
+    console.log('Call data found:', !!callData);
     
     let message = 'Hello! This is a test message from TalkAI. Thank you for calling.';
     
     if (callData && callData.information) {
       message = generateProfessionalPrompt(callData);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Using custom message:', message);
-      }
+      console.log('Using custom message for phone call');
+    } else {
+      console.log('No call data found, using default message');
     }
     
     const twiml = new twilio.twiml.VoiceResponse();
     
-    // Speak the custom message with selected voice
-    const voiceSettings = callData.voiceSettings || {};
-    const selectedVoice = getVoiceForPersonality(voiceSettings.personality || 'priyanshu');
+    // Use default voice settings if no call data
+    const voiceSettings = callData?.voiceSettings || { personality: 'priyanshu' };
+    const selectedVoice = getVoiceForPersonality(voiceSettings.personality);
+    
+    console.log('Selected voice:', selectedVoice);
     
     twiml.say({
       voice: selectedVoice.voice,
@@ -159,12 +160,22 @@ exports.handleVoiceCall = async (req, res) => {
     
     twiml.hangup();
     
+    console.log('TwiML generated successfully for phone call');
     res.type('text/xml');
     res.send(twiml.toString());
     
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).send('Error');
+    console.error('=== PHONE CALL WEBHOOK ERROR ===');
+    console.error('Error details:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Send basic TwiML response even on error
+    const twiml = new twilio.twiml.VoiceResponse();
+    twiml.say('Hello, thank you for calling. We are experiencing technical difficulties.');
+    twiml.hangup();
+    
+    res.type('text/xml');
+    res.send(twiml.toString());
   }
 };
 
