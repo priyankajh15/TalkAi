@@ -36,8 +36,17 @@ exports.makeVoiceCall = async (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
     const webhookUrl = `${isProduction ? process.env.BASE_URL_PROD : process.env.BASE_URL_LOCAL}/api/voice/handle-call`;
     
-    // Store call information in session/database for webhook access
+    // Initiate the call first
+    const call = await client.calls.create({
+      url: `${webhookUrl}?callId=${Date.now()}`,
+      to: targetNumber,
+      from: twilioNumber,
+      method: 'POST'
+    });
+
+    // Store call data with the actual CallSid
     const callData = {
+      callSid: call.sid,
       information: callInformation,
       companyName: companyName || 'Your Company',
       receiverName: req.body.receiverName,
@@ -49,25 +58,18 @@ exports.makeVoiceCall = async (req, res) => {
         language: 'auto',
         model: 'gpt-4-mini',
         stt: 'azure'
-      }
+      },
+      createdAt: new Date()
     };
 
-    // Initiate the call
-    const call = await client.calls.create({
-      url: `${webhookUrl}?callId=${Date.now()}`,
-      to: targetNumber,
-      from: twilioNumber,
-      method: 'POST'
-    });
-
+    // Store in memory for webhook access
+    global.activeCalls = global.activeCalls || {};
+    global.activeCalls[call.sid] = callData;
+    
     // Security: Log minimal data only
     if (process.env.NODE_ENV === 'development') {
       console.log('Call data stored for CallSid:', call.sid);
     }
-
-    // Store call data temporarily (you might want to use Redis or database)
-    global.activeCalls = global.activeCalls || {};
-    global.activeCalls[call.sid] = callData;
 
     logger.info('Voice call initiated', {
       callSid: call.sid,
