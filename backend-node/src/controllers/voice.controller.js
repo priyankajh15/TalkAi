@@ -36,35 +36,27 @@ exports.makeVoiceCall = async (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
     const webhookUrl = `${isProduction ? process.env.BASE_URL_PROD : process.env.BASE_URL_LOCAL}/api/voice/handle-call`;
     
-    // Initiate the call first
-    const call = await client.calls.create({
-      url: `${webhookUrl}?callId=${Date.now()}`,
-      to: targetNumber,
-      from: twilioNumber,
-      method: 'POST'
-    });
-
-    // Store call data with the actual CallSid
-    const callData = {
-      callSid: call.sid,
+    // Encode call data in webhook URL
+    const callDataEncoded = Buffer.from(JSON.stringify({
       information: callInformation,
       companyName: companyName || 'Your Company',
       receiverName: req.body.receiverName,
       escalationNumber: escalationNumber || req.body.escalationNumber,
-      userId: req.user?.id || 'unknown',
-      companyId: req.user?.companyId || 'unknown',
       voiceSettings: req.body.voiceSettings || {
         personality: 'priyanshu',
         language: 'auto',
         model: 'gpt-4-mini',
         stt: 'azure'
-      },
-      createdAt: new Date()
-    };
+      }
+    })).toString('base64');
 
-    // Store in memory for webhook access
-    global.activeCalls = global.activeCalls || {};
-    global.activeCalls[call.sid] = callData;
+    // Initiate the call with data in URL
+    const call = await client.calls.create({
+      url: `${webhookUrl}?data=${encodeURIComponent(callDataEncoded)}`,
+      to: targetNumber,
+      from: twilioNumber,
+      method: 'POST'
+    });
     
     // Security: Log minimal data only
     if (process.env.NODE_ENV === 'development') {
@@ -115,7 +107,18 @@ exports.handleVoiceCall = async (req, res) => {
     console.log('To:', To);
     console.log('Environment:', process.env.NODE_ENV);
     
-    const callData = global.activeCalls?.[CallSid];
+    // Get call data from URL parameter
+    let callData = null;
+    try {
+      const dataParam = req.query.data;
+      if (dataParam) {
+        const decodedData = Buffer.from(decodeURIComponent(dataParam), 'base64').toString('utf8');
+        callData = JSON.parse(decodedData);
+        console.log('Call data retrieved from URL:', !!callData);
+      }
+    } catch (error) {
+      console.error('Failed to decode call data from URL:', error.message);
+    }
     console.log('Call data found:', !!callData);
     
     let message = 'Hello! This is a test message from TalkAI. Thank you for calling.';
@@ -187,7 +190,7 @@ exports.handleVoiceCall = async (req, res) => {
 exports.handleVoiceResponse = async (req, res) => {
   try {
     const { CallSid, SpeechResult } = req.body;
-    const callData = global.activeCalls?.[CallSid];
+    const callData = null; // No call data available in response handler
     const userResponse = SpeechResult || '';
 
     // Security: Log only in development
@@ -430,7 +433,7 @@ function detectLanguage(userResponse, languageSetting) {
 exports.collectCallback = async (req, res) => {
   try {
     const { CallSid, SpeechResult } = req.body;
-    const callData = global.activeCalls?.[CallSid];
+    const callData = null; // No call data available in callback handler
     const contactInfo = SpeechResult || '';
 
     console.log('Callback info collected:', contactInfo);
