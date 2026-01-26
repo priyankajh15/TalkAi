@@ -63,11 +63,7 @@ exports.makeVoiceCall = async (req, res) => {
       console.log('Call data stored for CallSid:', call.sid);
     }
 
-    logger.info('Voice call initiated', {
-      callSid: call.sid,
-      targetNumber: targetNumber.replace(/\d(?=\d{4})/g, '*'), // Mask phone number
-      userId: req.user?.id || 'unknown'
-    });
+    console.log('Voice call initiated:', call.sid);
 
     return res.json({
       success: true,
@@ -80,10 +76,8 @@ exports.makeVoiceCall = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Voice call error', {
-      error: error.message,
-      userId: req.user?.id
-    });
+    console.error('Voice call error:', error.message);
+    console.error('Error stack:', error.stack);
 
     return res.status(500).json({
       success: false,
