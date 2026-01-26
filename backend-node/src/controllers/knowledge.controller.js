@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 const KnowledgeBase = require("../models/KnowledgeBase.model");
+const fs = require('fs');
+const pdfParse = require('pdf-parse');
 
 /**
  * CREATE
@@ -158,6 +160,65 @@ exports.deleteItem = async (req, res, next) => {
       message: "Knowledge item deleted"
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * UPLOAD PDF
+ */
+exports.uploadPDF = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded"
+      });
+    }
+
+    // Extract text from PDF
+    let pdfText = '';
+    try {
+      const pdfBuffer = fs.readFileSync(req.file.path);
+      const pdfData = await pdfParse(pdfBuffer);
+      pdfText = pdfData.text;
+      
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+    } catch (pdfError) {
+      console.error('PDF parsing error:', pdfError);
+      pdfText = `PDF file: ${req.file.originalname}. Text extraction failed.`;
+      
+      // Clean up uploaded file even on error
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('File cleanup error:', unlinkError);
+      }
+    }
+
+    // Create knowledge base entry with extracted text
+    const item = await KnowledgeBase.create({
+      companyId: req.user.companyId,
+      title: req.file.originalname.replace('.pdf', ''),
+      content: pdfText,
+      category: 'pdf'
+    });
+
+    res.status(201).json({
+      success: true,
+      data: item,
+      message: "PDF uploaded and processed successfully"
+    });
+  } catch (err) {
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('File cleanup error:', unlinkError);
+      }
+    }
     next(err);
   }
 };
