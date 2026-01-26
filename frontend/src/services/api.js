@@ -51,7 +51,7 @@ export const aiAPI = {
   
   // Knowledge base functions
   getKnowledgeBase: () => 
-    api.get('/ai/knowledge'),
+    api.get('/ai/knowledge/files'),
   
   uploadPDF: (file) => {
     const formData = new FormData();
@@ -68,10 +68,10 @@ export const aiAPI = {
   },
   
   getKnowledgeFiles: () => 
-    api.get('/ai/knowledge'),
+    api.get('/ai/knowledge/files'),
   
   deleteKnowledgeFile: (fileId) => 
-    api.delete(`/ai/knowledge/${fileId}`)
+    api.delete(`/ai/knowledge/file/${fileId}`)
 };
 
 // Voice API functions
