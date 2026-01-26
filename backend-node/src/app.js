@@ -11,6 +11,7 @@ const protectedRoutes = require("./routes/protected.routes");
 const knowledgeRoutes = require("./routes/knowledge.routes");
 const aiRoutes = require("./routes/ai.routes");
 const voiceRoutes = require("./routes/voice.routes");
+const callLogsRoutes = require("./routes/callLogs.routes");
 const healthRoutes = require("./routes/health.routes");
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/protected", protectedRoutes);
 app.use("/api/v1/knowledge", knowledgeRoutes);
 app.use("/api/v1/ai", aiRoutes);
+app.use("/api/v1/ai", callLogsRoutes);
 app.use("/api/voice", voiceRoutes);
 app.use("/health", healthRoutes);
 

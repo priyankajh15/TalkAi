@@ -1,5 +1,6 @@
 const twilio = require('twilio');
 const logger = require('../config/logger');
+const CallLog = require('../models/CallLog.model');
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -72,6 +73,19 @@ exports.makeVoiceCall = async (req, res) => {
     }
 
     console.log('Voice call initiated:', call.sid);
+
+    // Create call log entry
+    try {
+      await CallLog.create({
+        companyId: req.user?.companyId || '507f1f77bcf86cd799439011',
+        callId: call.sid,
+        callerNumber: twilioNumber,
+        startTime: new Date(),
+        handledBy: 'AI'
+      });
+    } catch (logError) {
+      console.error('Failed to create call log:', logError.message);
+    }
 
     return res.json({
       success: true,
