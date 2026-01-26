@@ -24,11 +24,12 @@ const CallLogs = () => {
     queryKey: ['ai-call-logs', debouncedSearch],
     queryFn: async () => {
       const response = await aiAPI.getCallLogs(1, 50);
+      console.log('API Response:', response.data); // Debug log
       return response.data;
     }
   });
 
-  const callLogs = callLogsData?.data || [];
+  const callLogs = callLogsData?.data?.callLogs || [];
 
   const handleViewCall = (call) => {
     setSelectedCall(call);
@@ -224,7 +225,9 @@ const CallLogs = () => {
         {isLoading ? (
           <SkeletonTable rows={8} />
         ) : (
-          <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
+          <div className="glass" style={{ padding: '0', overflow: 'hidden' }}
+            onMouseEnter={(e) => e.stopPropagation()}
+            onMouseLeave={(e) => e.stopPropagation()}>
             <h2 style={{ padding: '30px 30px 20px', fontSize: '24px', margin: 0 }}>
               Call Logs
             </h2>
@@ -276,7 +279,15 @@ const CallLogs = () => {
                     padding: '20px 30px',
                     borderBottom: '1px solid rgba(255,255,255,0.05)',
                     fontSize: '14px',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
                   }}>
                     <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
                       <div style={{ color: '#fff', fontWeight: '500' }}>
@@ -286,19 +297,19 @@ const CallLogs = () => {
 
                     <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
                       <div style={{ color: '#60a5fa', fontWeight: '500' }}>
-                        TalkAI Agent
+                        {call.handledBy === 'AI' ? (call.botName || 'TalkAI Agent') : 'Human Agent'}
                       </div>
                     </div>
 
                     <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
                       <div style={{ color: '#999', fontFamily: 'monospace' }}>
-                        {call.callerNumber || '+91XXXXXXXXXX'}
+                        {call.callerNumber || '+18648104203'}
                       </div>
                     </div>
 
                     <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
                       <div style={{ color: '#999', fontFamily: 'monospace' }}>
-                        +91XXXXXXXXXX
+                        {call.receiverNumber || 'N/A'}
                       </div>
                     </div>
 
@@ -329,7 +340,7 @@ const CallLogs = () => {
 
                     <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
                       <div style={{ color: '#4ade80' }}>
-                        $ 0.15
+                        ${(call.duration * 0.01).toFixed(2) || '0.00'}
                       </div>
                     </div>
 
@@ -340,44 +351,72 @@ const CallLogs = () => {
                           style={{ display: 'none' }}
                           onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
                         >
-                          <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav" />
+                          <source src={call.recordingUrl || "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"} type="audio/wav" />
                         </audio>
 
-                        <button
-                          onClick={() => toggleAudio(call._id)}
-                          style={{
-                            padding: '8px',
-                            borderRadius: '50%',
-                            border: 'none',
-                            backgroundColor: '#000',
-                            color: '#fff',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '32px',
-                            height: '32px'
-                          }}
-                          title={playingAudio[call._id] ? "Pause Recording" : "Play Recording"}
-                        >
-                          <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
-                        </button>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          backgroundColor: '#2d2d2d',
+                          borderRadius: '20px',
+                          padding: '8px 12px',
+                          minWidth: '120px'
+                        }}>
+                          <button
+                            onClick={() => toggleAudio(call._id)}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              border: 'none',
+                              backgroundColor: 'rgb(96, 165, 250)',
+                              color: '#fff',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
+                          </button>
+                          
+                          <div style={{
+                            flex: 1,
+                            height: '4px',
+                            backgroundColor: '#404040',
+                            borderRadius: '2px',
+                            overflow: 'hidden'
+                          }}>
+                            <div style={{
+                              height: '100%',
+                              backgroundColor: 'rgb(96, 165, 250)',
+                              width: '0%',
+                              borderRadius: '2px'
+                            }} />
+                          </div>
+                          
+                          <span style={{
+                            color: '#9ca3af',
+                            fontSize: '11px',
+                            fontFamily: 'monospace'
+                          }}>
+                            {formatDuration(call.duration)}
+                          </span>
+                        </div>
 
                         <button
                           onClick={() => downloadRecording(call._id)}
                           style={{
                             padding: '8px',
-                            borderRadius: '4px',
+                            borderRadius: '50%',
                             border: '1px solid rgba(255,255,255,0.2)',
                             backgroundColor: 'transparent',
                             color: '#60a5fa',
                             fontSize: '12px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center'
+                            cursor: 'pointer'
                           }}
-                          title="Download Recording"
                         >
                           <FontAwesomeIcon icon={faDownload} />
                         </button>
