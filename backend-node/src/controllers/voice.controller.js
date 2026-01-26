@@ -45,12 +45,32 @@ exports.makeVoiceCall = async (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
     const webhookUrl = `${isProduction ? process.env.BASE_URL_PROD : process.env.BASE_URL_LOCAL}/api/voice/handle-call`;
     
+    // Get company's knowledge base data
+    let knowledgeBase = [];
+    try {
+      const companyKnowledge = await KnowledgeBase.find({
+        companyId: req.user?.companyId,
+        isActive: true
+      }).select('title content category');
+      
+      knowledgeBase = companyKnowledge.map(kb => ({
+        title: kb.title,
+        content: kb.content,
+        category: kb.category
+      }));
+      
+      console.log(`Found ${knowledgeBase.length} knowledge base items for company`);
+    } catch (kbError) {
+      console.error('Failed to fetch knowledge base:', kbError.message);
+    }
+
     // Encode call data in webhook URL
     const callDataEncoded = Buffer.from(JSON.stringify({
       information: callInformation,
       companyName: companyName || 'Your Company',
       receiverName: req.body.receiverName,
       escalationNumber: escalationNumber || req.body.escalationNumber,
+      knowledgeBase: knowledgeBase, // Include PDF knowledge
       voiceSettings: req.body.voiceSettings || {
         personality: 'priyanshu',
         language: 'auto',
@@ -390,7 +410,8 @@ async function generateContextualResponse(userResponse, callData) {
       user_message: userResponse,
       call_data: callData,
       voice_settings: callData?.voiceSettings,
-      call_sid: callData?.callSid  // Phase 3: Pass call_sid for conversation memory
+      call_sid: callData?.callSid,
+      knowledge_base: callData?.knowledgeBase || [] // Send PDF knowledge to AI
     }, {
       timeout: 8000  // Increased timeout for LLM processing
     });
@@ -400,8 +421,23 @@ async function generateContextualResponse(userResponse, callData) {
       language: response.data.detected_language,
       sentiment: response.data.sentiment.label,
       confidence: response.data.language_confidence,
-      context_used: response.data.context_used
+      context_used: response.data.context_used,
+      abusive_detected: response.data.abusive_detected
     });
+    
+    // Update call log if abusive content detected
+    if (response.data.abusive_detected) {
+      try {
+        await CallLog.findOneAndUpdate(
+          { callId: CallSid },
+          { abusiveDetected: true },
+          { new: true }
+        );
+        console.log('Call log updated with abusive detection');
+      } catch (updateError) {
+        console.error('Failed to update call log for abusive content:', updateError.message);
+      }
+    }
     
     return response.data.ai_response;
     
