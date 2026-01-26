@@ -288,7 +288,7 @@ Respond as {personality} in {language}. Focus on:
         intent = self._classify_intent(user_message)
         
         # Search knowledge base for relevant content
-        relevant_kb_info = self._search_knowledge_base(user_message, intent, knowledge_base or [])
+        relevant_kb_info = self._search_knowledge_base(user_message, knowledge_base or [])
         
         # Get base templates with knowledge base integration
         response = self._get_kb_enhanced_response(personality, language, intent, company_name, relevant_kb_info, sentiment)
@@ -307,44 +307,34 @@ Respond as {personality} in {language}. Focus on:
         
         return response
     
-    def _search_knowledge_base(self, user_message: str, intent: str, knowledge_base: List) -> str:
-        """Search knowledge base for relevant content based on user message and intent"""
+    def _search_knowledge_base(self, user_message: str, knowledge_base: List) -> str:
+        """Search knowledge base for relevant content based on user message"""
         if not knowledge_base:
             return ""
         
         user_msg_lower = user_message.lower()
         relevant_content = []
         
-        # Intent-based keywords with enhanced patterns
-        intent_keywords = {
-            'services': ['service', 'offer', 'provide', 'do', 'kya', 'seva', 'product', 'solution', 'help', 'support', 'feature', 'capability'],
-            'pricing': ['price', 'cost', 'rate', 'fee', 'paisa', 'kitna', 'amount', 'charge', 'expensive', 'cheap', 'budget', 'plan'],
-            'interested': ['interested', 'good', 'great', 'accha', 'haan', 'yes', 'amazing', 'perfect', 'excellent'],
-            'contact': ['contact', 'phone', 'email', 'address', 'sampark', 'call', 'reach', 'connect', 'meeting'],
-            'complaint': ['problem', 'issue', 'complaint', 'wrong', 'error', 'galat', 'pareshani', 'dikkat', 'bad'],
-            'demo': ['demo', 'show', 'example', 'trial', 'test', 'dikhao', 'sample']
-        }
-        
-        # Search through knowledge base
+        # Search through knowledge base with simple word matching
         for kb_item in knowledge_base:
             content = kb_item.get('content', '').lower()
             title = kb_item.get('title', '').lower()
             
-            # Check for direct keyword matches
-            keywords = intent_keywords.get(intent, [])
-            for keyword in keywords:
-                if keyword in user_msg_lower and (keyword in content or keyword in title):
-                    relevant_content.append(kb_item.get('content', '')[:300])
+            # Check for any word matches from user message (3+ characters)
+            user_words = [word for word in user_msg_lower.split() if len(word) > 2]
+            
+            match_found = False
+            for word in user_words:
+                if word in content or word in title:
+                    relevant_content.append(kb_item.get('content', '')[:400])
+                    match_found = True
                     break
             
-            # Check for specific words from user message
-            user_words = user_msg_lower.split()
-            for word in user_words:
-                if len(word) > 3 and word in content:
-                    relevant_content.append(kb_item.get('content', '')[:300])
-                    break
+            # If no matches found, include all KB content as fallback
+            if not match_found:
+                relevant_content.append(kb_item.get('content', '')[:400])
         
-        return " ".join(relevant_content[:2])  # Limit to 2 most relevant items
+        return " ".join(relevant_content[:2])  # Return relevant content
     
     def _get_kb_enhanced_response(self, personality: str, language: str, intent: str, 
                                 company_name: str, kb_info: str, sentiment: Dict) -> str:
