@@ -1,18 +1,21 @@
 const CallLog = require('../models/CallLog.model');
 
-// Get call logs with pagination
+// Get call logs with pagination (company-specific)
 const getCallLogs = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
-    const callLogs = await CallLog.find()
+    // Filter by authenticated user's companyId
+    const companyId = req.user.companyId;
+
+    const callLogs = await CallLog.find({ companyId })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await CallLog.countDocuments();
+    const total = await CallLog.countDocuments({ companyId });
 
     res.json({
       success: true,
@@ -54,17 +57,25 @@ const createCallLog = async (req, res) => {
   }
 };
 
-// Update call log
+// Update call log (company-specific)
 const updateCallLog = async (req, res) => {
   try {
     const { callId } = req.params;
     const updates = req.body;
+    const companyId = req.user.companyId;
     
     const callLog = await CallLog.findOneAndUpdate(
-      { callId },
+      { callId, companyId }, // Filter by both callId and companyId
       updates,
-      { new: true, upsert: true }
+      { new: true }
     );
+    
+    if (!callLog) {
+      return res.status(404).json({
+        success: false,
+        message: 'Call log not found or access denied'
+      });
+    }
     
     res.json({
       success: true,
