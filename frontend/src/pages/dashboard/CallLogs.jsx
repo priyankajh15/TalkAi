@@ -333,10 +333,9 @@ const CallLogs = () => {
                         borderRadius: '12px',
                         fontSize: '11px',
                         fontWeight: '600',
-                        backgroundColor: call.escalationReason ? '#dc2626' : '#059669',
-                        color: '#fff'
+                        color: '#60a5fa'
                       }}>
-                        {call.escalationReason ? 'escalated' : 'completed'}
+                        completed
                       </span>
                     </div>
 

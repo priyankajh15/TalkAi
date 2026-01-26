@@ -76,10 +76,15 @@ exports.makeVoiceCall = async (req, res) => {
 
     // Create call log entry
     try {
+      const personality = req.body.voiceSettings?.personality || 'priyanshu';
+      const botName = personality.charAt(0).toUpperCase() + personality.slice(1); // Capitalize first letter
+      
       await CallLog.create({
         companyId: req.user?.companyId || '507f1f77bcf86cd799439011',
         callId: call.sid,
         callerNumber: twilioNumber,
+        receiverNumber: formattedNumber, // Add target number
+        botName: botName, // Save personality name as bot name
         startTime: new Date(),
         handledBy: 'AI'
       });

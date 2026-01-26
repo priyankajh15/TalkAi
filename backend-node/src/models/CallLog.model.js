@@ -10,6 +10,8 @@ const CallLogSchema = new mongoose.Schema(
 
     callId: { type: String, required: true },
     callerNumber: { type: String },
+    receiverNumber: { type: String }, // Target number being called
+    botName: { type: String }, // AI personality name
 
     startTime: { type: Date },
     endTime: { type: Date },
