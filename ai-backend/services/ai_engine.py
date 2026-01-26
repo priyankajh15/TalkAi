@@ -323,57 +323,71 @@ Respond as {personality} in {language}. Focus on:
             # Check for any word matches from user message (3+ characters)
             user_words = [word for word in user_msg_lower.split() if len(word) > 2]
             
-            match_found = False
             for word in user_words:
                 if word in content or word in title:
-                    relevant_content.append(kb_item.get('content', '')[:400])
-                    match_found = True
+                    # Found relevant content, add it
+                    relevant_content.append(kb_item.get('content', '')[:500])
                     break
-            
-            # If no matches found, include all KB content as fallback
-            if not match_found:
-                relevant_content.append(kb_item.get('content', '')[:400])
         
-        return " ".join(relevant_content[:2])  # Return relevant content
+        # If we found relevant content, return it
+        if relevant_content:
+            return " ".join(relevant_content[:2])  # Return top 2 matches
+        
+        # If no specific matches, return first KB item as fallback
+        if knowledge_base:
+            return knowledge_base[0].get('content', '')[:500]
+        
+        return ""
     
     def _get_kb_enhanced_response(self, personality: str, language: str, intent: str, 
                                 company_name: str, kb_info: str, sentiment: Dict) -> str:
         """Generate response using knowledge base content with personality and language"""
         
-        # If no knowledge base info, use generic response
-        if not kb_info:
-            kb_info = "comprehensive business solutions"
-        
-        # Personality-based response templates with knowledge base integration
-        templates = {
-            'priyanshu': {
-                'english': f"Thank you for your inquiry. Based on our documentation, {company_name} offers {kb_info}. I'd be happy to connect you with our technical team for detailed information.",
-                'hindi': f"Aapke sawal ke liye dhanyawad. Hamare documentation ke anusaar, {company_name} {kb_info} provide karta hai. Main aapko technical team se connect karne mein khushi se madad karunga."
-            },
-            'tanmay': {
-                'english': f"Oh wow, great question! {company_name} has some amazing stuff - {kb_info}! This is so exciting! Want me to get you connected with our awesome team?",
-                'hindi': f"Wow, bahut accha question! {company_name} ke paas kuch amazing cheezein hain - {kb_info}! Ye bahut exciting hai! Kya main aapko hamare awesome team se connect kar dun?"
-            },
-            'ekta': {
-                'english': f"I appreciate your inquiry. According to our official documentation, {company_name} provides {kb_info}. May I respectfully arrange a consultation with our distinguished specialists?",
-                'hindi': f"Aapki inquiry ke liye appreciate karti hun. Hamare official documentation ke anusaar, {company_name} {kb_info} provide karta hai. Kya main respectfully hamare distinguished specialists ke saath consultation arrange kar sakti hun?"
-            },
-            'priyanka': {
-                'english': f"From a technical perspective, our documentation shows that {company_name} implements {kb_info}. Shall I connect you with our solutions architect for detailed technical specifications?",
-                'hindi': f"Technical perspective se, hamare documentation mein dikhaya gaya hai ki {company_name} {kb_info} implement karta hai. Kya main aapko detailed technical specifications ke liye solutions architect se connect kar dun?"
+        # If we have knowledge base info, use it directly
+        if kb_info and len(kb_info.strip()) > 10:
+            # Personality-based response templates with actual knowledge base content
+            templates = {
+                'priyanshu': {
+                    'english': f"Based on our knowledge base, here's what I can tell you: {kb_info[:300]}... Would you like me to connect you with our technical team for more detailed information?",
+                    'hindi': f"Hamare knowledge base ke anusaar, main aapko ye bata sakta hun: {kb_info[:300]}... Kya aap chahenge ki main aapko technical team se connect kar dun detailed information ke liye?"
+                },
+                'tanmay': {
+                    'english': f"Oh wow, great question! Here's what our knowledge base says: {kb_info[:300]}... This is so exciting! Want me to get you connected with our awesome team for more details?",
+                    'hindi': f"Wow, bahut accha question! Hamare knowledge base mein ye hai: {kb_info[:300]}... Ye bahut exciting hai! Kya main aapko hamare awesome team se connect kar dun more details ke liye?"
+                },
+                'ekta': {
+                    'english': f"According to our official documentation: {kb_info[:300]}... May I respectfully arrange a consultation with our distinguished specialists for comprehensive information?",
+                    'hindi': f"Hamare official documentation ke anusaar: {kb_info[:300]}... Kya main respectfully hamare distinguished specialists ke saath consultation arrange kar sakti hun comprehensive information ke liye?"
+                },
+                'priyanka': {
+                    'english': f"From a technical perspective, our documentation shows: {kb_info[:300]}... Shall I connect you with our solutions architect for detailed technical specifications?",
+                    'hindi': f"Technical perspective se, hamare documentation mein ye hai: {kb_info[:300]}... Kya main aapko detailed technical specifications ke liye solutions architect se connect kar dun?"
+                }
             }
-        }
+        else:
+            # Fallback to generic business responses if no KB content
+            templates = {
+                'priyanshu': {
+                    'english': f"Thank you for your inquiry. {company_name} offers comprehensive business solutions. I'd be happy to connect you with our technical team for detailed information.",
+                    'hindi': f"Aapke sawal ke liye dhanyawad. {company_name} comprehensive business solutions provide karta hai. Main aapko technical team se connect karne mein khushi se madad karunga."
+                },
+                'tanmay': {
+                    'english': f"Oh wow, great question! {company_name} has some amazing business solutions! This is so exciting! Want me to get you connected with our awesome team?",
+                    'hindi': f"Wow, bahut accha question! {company_name} ke paas kuch amazing business solutions hain! Ye bahut exciting hai! Kya main aapko hamare awesome team se connect kar dun?"
+                },
+                'ekta': {
+                    'english': f"I appreciate your inquiry. {company_name} provides comprehensive business solutions. May I respectfully arrange a consultation with our distinguished specialists?",
+                    'hindi': f"Aapki inquiry ke liye appreciate karti hun. {company_name} comprehensive business solutions provide karta hai. Kya main respectfully hamare distinguished specialists ke saath consultation arrange kar sakti hun?"
+                },
+                'priyanka': {
+                    'english': f"From a technical perspective, {company_name} implements comprehensive business solutions. Shall I connect you with our solutions architect for detailed technical specifications?",
+                    'hindi': f"Technical perspective se, {company_name} comprehensive business solutions implement karta hai. Kya main aapko detailed technical specifications ke liye solutions architect se connect kar dun?"
+                }
+            }
         
         # Get personality template
         p_template = templates.get(personality, templates['priyanshu'])
         response = p_template.get(language, p_template['english'])
-        
-        # Adjust for specific intents
-        if intent == 'pricing' and 'price' in kb_info.lower():
-            if language == 'hindi':
-                response = response.replace('technical team', 'pricing team')
-            else:
-                response = response.replace('technical team', 'pricing team')
         
         return response
     

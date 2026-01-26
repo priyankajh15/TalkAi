@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faGlobe, faFile, faTrash, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
@@ -9,11 +9,41 @@ const KnowledgeBase = () => {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [storageUsed, setStorageUsed] = useState(5.0); // MB
+  const [storageUsed, setStorageUsed] = useState(0); // MB
   const [storageLimit] = useState(10.0); // MB
+  const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  // Mock uploaded files - replace with real API call later
   const files = uploadedFiles;
+
+  // Load files on component mount
+  useEffect(() => {
+    loadFiles();
+  }, []);
+
+  const loadFiles = async () => {
+    try {
+      const response = await aiAPI.getKnowledgeFiles();
+      const files = response.data.data.map(file => ({
+        id: file._id,
+        name: file.title,
+        size: (file.content.length / 1024 / 1024).toFixed(2) + ' MB',
+        uploadedAt: file.createdAt,
+        status: 'processed',
+        type: file.category === 'website' ? 'website' : 'pdf'
+      }));
+      setUploadedFiles(files);
+      
+      // Calculate storage used
+      const totalSize = files.reduce((sum, file) => sum + parseFloat(file.size), 0);
+      setStorageUsed(totalSize);
+    } catch (error) {
+      console.error('Failed to load files:', error);
+      toast.error('Failed to load knowledge base files');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -44,16 +74,9 @@ const KnowledgeBase = () => {
       if (file.type === 'application/pdf' && file.size <= 10 * 1024 * 1024) {
         try {
           const response = await aiAPI.uploadPDF(file);
-          const newFile = {
-            id: response.data.data.file_id,
-            name: file.name,
-            size: response.data.data.size,
-            uploadedAt: new Date().toISOString(),
-            status: 'processed'
-          };
-          setUploadedFiles(prev => [...prev, newFile]);
-          setStorageUsed(prev => prev + parseFloat(newFile.size));
           toast.success(`${file.name} uploaded successfully!`);
+          // Reload files to get updated list
+          await loadFiles();
         } catch (error) {
           toast.error(`Failed to upload ${file.name}`);
         }
@@ -70,19 +93,11 @@ const KnowledgeBase = () => {
     }
     
     try {
-      const response = await aiAPI.addWebsite(websiteUrl);
-      const newFile = {
-        id: response.data.data.file_id,
-        name: websiteUrl,
-        size: response.data.data.size,
-        uploadedAt: new Date().toISOString(),
-        status: 'processed',
-        type: 'website'
-      };
-      setUploadedFiles(prev => [...prev, newFile]);
-      setStorageUsed(prev => prev + 0.5);
+      await aiAPI.addWebsite(websiteUrl);
       setWebsiteUrl('');
       toast.success('Website content added to knowledge base!');
+      // Reload files to get updated list
+      await loadFiles();
     } catch (error) {
       toast.error('Failed to add website content');
     }
@@ -91,15 +106,18 @@ const KnowledgeBase = () => {
   const handleDeleteFile = async (fileId) => {
     try {
       await aiAPI.deleteKnowledgeFile(fileId);
-      const file = uploadedFiles.find(f => f.id === fileId);
-      if (file) {
-        setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
-        setStorageUsed(prev => prev - parseFloat(file.size));
-        toast.success('File removed from knowledge base');
-      }
+      toast.success('File removed from knowledge base');
+      setDeleteConfirm(null);
+      // Reload files to get updated list
+      await loadFiles();
     } catch (error) {
       toast.error('Failed to delete file');
+      setDeleteConfirm(null);
     }
+  };
+
+  const confirmDelete = (file) => {
+    setDeleteConfirm(file);
   };
 
   const storagePercentage = (storageUsed / storageLimit) * 100;
@@ -249,7 +267,11 @@ const KnowledgeBase = () => {
           <div className="glass" style={{ padding: '20px', gridColumn: '1 / -1' }}>
             <h3 style={{ fontSize: '16px', marginBottom: '15px' }}>Uploaded Files</h3>
             
-            {files.length === 0 ? (
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
+                <p style={{ fontSize: '14px' }}>Loading files...</p>
+              </div>
+            ) : files.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
                 <FontAwesomeIcon icon={faFile} style={{ fontSize: '32px', marginBottom: '10px' }} />
                 <p style={{ fontSize: '14px' }}>No files uploaded yet</p>
@@ -282,7 +304,7 @@ const KnowledgeBase = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleDeleteFile(file.id)}
+                      onClick={() => confirmDelete(file)}
                       style={{
                         padding: '8px',
                         borderRadius: '4px',
@@ -301,6 +323,73 @@ const KnowledgeBase = () => {
             )}
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {deleteConfirm && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '30px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              maxWidth: '400px',
+              width: '90%'
+            }}>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <FontAwesomeIcon 
+                  icon={faExclamationTriangle} 
+                  style={{ fontSize: '48px', color: '#f59e0b', marginBottom: '15px' }} 
+                />
+                <h3 style={{ fontSize: '18px', marginBottom: '10px' }}>Delete File</h3>
+                <p style={{ color: '#999', fontSize: '14px' }}>
+                  Are you sure you want to delete <strong>{deleteConfirm.name}</strong>? 
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    backgroundColor: 'transparent',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteFile(deleteConfirm.id)}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: '#dc2626',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
