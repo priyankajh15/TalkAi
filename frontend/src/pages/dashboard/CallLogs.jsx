@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClipboardList, faSearch, faEye, faRobot, faUser, faDownload, faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
@@ -11,6 +12,7 @@ import { aiAPI } from '../../services/api';
 import { Modal } from '../../components/Modal';
 
 const CallLogs = () => {
+  const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCall, setSelectedCall] = useState(null);
@@ -265,8 +267,8 @@ const CallLogs = () => {
                 icon={faClipboardList}
                 title="No call logs yet"
                 description="Your AI call history will appear here once customers start calling your phone numbers. Track AI performance, transcripts, and outcomes."
-                actionText="Test AI Chat"
-                onAction={() => console.log('Test AI chat')}
+                actionText="Make Voice Call"
+                onAction={() => navigate('/voice-ai-assistants')}
               />
             ) : (
               <>
