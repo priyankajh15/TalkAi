@@ -24,13 +24,21 @@ exports.makeVoiceCall = async (req, res) => {
       escalationNumber 
     } = req.body;
 
-    // Validate required fields
-    if (!targetNumber || !callInformation) {
-      return res.status(400).json({
-        success: false,
-        message: 'Target number and call information are required'
-      });
+    // Format phone number properly
+    let formattedNumber = targetNumber;
+    if (!formattedNumber.startsWith('+')) {
+      // Add country code if missing
+      if (formattedNumber.startsWith('91')) {
+        formattedNumber = `+${formattedNumber}`;
+      } else if (formattedNumber.length === 10) {
+        formattedNumber = `+91${formattedNumber}`;
+      } else {
+        formattedNumber = `+91${formattedNumber}`;
+      }
     }
+    
+    console.log('Original number:', targetNumber);
+    console.log('Formatted number:', formattedNumber);
 
     // Environment-based URL selection
     const isProduction = process.env.NODE_ENV === 'production';
@@ -53,7 +61,7 @@ exports.makeVoiceCall = async (req, res) => {
     // Initiate the call with data in URL
     const call = await client.calls.create({
       url: `${webhookUrl}?data=${encodeURIComponent(callDataEncoded)}`,
-      to: targetNumber,
+      to: formattedNumber,
       from: twilioNumber,
       method: 'POST'
     });
