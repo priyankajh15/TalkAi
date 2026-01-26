@@ -79,6 +79,13 @@ class LightweightLanguageDetector:
 class LightweightSentimentAnalyzer:
     """Lightweight sentiment analysis using TextBlob only"""
     
+    def __init__(self):
+        # Abusive words in Hindi and English
+        self.abusive_words = {
+            'english': ['fuck', 'shit', 'damn', 'bastard', 'bitch', 'asshole', 'idiot', 'stupid', 'moron'],
+            'hindi': ['chutiya', 'madarchod', 'bhenchod', 'randi', 'saala', 'kamina', 'harami', 'gandu', 'bakchod']
+        }
+    
     def analyze_sentiment(self, text: str) -> Dict[str, float]:
         """Analyze sentiment with TextBlob"""
         try:
@@ -93,6 +100,20 @@ class LightweightSentimentAnalyzer:
         except Exception as e:
             logger.error(f"Sentiment analysis failed: {e}")
             return {'label': 'neutral', 'score': 0.5}
+    
+    def detect_abusive_content(self, text: str) -> Dict[str, bool]:
+        """Detect abusive words in Hindi and English"""
+        text_lower = text.lower()
+        
+        # Check for abusive words
+        english_abuse = any(word in text_lower for word in self.abusive_words['english'])
+        hindi_abuse = any(word in text_lower for word in self.abusive_words['hindi'])
+        
+        return {
+            'is_abusive': english_abuse or hindi_abuse,
+            'english_abuse': english_abuse,
+            'hindi_abuse': hindi_abuse
+        }
 
 class PersonalityEngine:
     """Enhanced personality system with dynamic traits"""
@@ -152,7 +173,7 @@ class LightweightResponseGenerator:
         self.personality_engine = PersonalityEngine()
     
     async def generate_response(self, user_message: str, call_data: Dict, 
-                              voice_settings: Dict, call_sid: str = None) -> Dict:
+                              voice_settings: Dict, call_sid: str = None, knowledge_base: List = None) -> Dict:
         """Generate dynamic AI response with full context"""
         try:
             # Language detection
@@ -163,13 +184,16 @@ class LightweightResponseGenerator:
             # Sentiment analysis
             sentiment = self.sentiment_analyzer.analyze_sentiment(user_message)
             
+            # Abusive content detection
+            abuse_detection = self.sentiment_analyzer.detect_abusive_content(user_message)
+            
             # Get conversation context
             context = self.memory.get_context(call_sid) if call_sid else []
             
             # Generate response using OpenAI or templates
             personality = voice_settings.get('personality', 'priyanshu')
             response_text = await self._generate_llm_response(
-                user_message, personality, language, sentiment, context, call_data
+                user_message, personality, language, sentiment, context, call_data, knowledge_base or [], abuse_detection
             )
             
             # Store in memory
@@ -182,7 +206,8 @@ class LightweightResponseGenerator:
                 'language_confidence': lang_confidence,
                 'sentiment': sentiment,
                 'personality': personality,
-                'context_used': len(context) > 0
+                'context_used': len(context) > 0,
+                'abusive_detected': abuse_detection['is_abusive']
             }
             
         except Exception as e:
@@ -191,12 +216,16 @@ class LightweightResponseGenerator:
     
     async def _generate_llm_response(self, user_message: str, personality: str, 
                                    language: str, sentiment: Dict, context: List, 
-                                   call_data: Dict) -> str:
+                                   call_data: Dict, knowledge_base: List, abuse_detection: Dict = None) -> str:
         """Generate response using OpenAI GPT with fallback to templates"""
         # Check if OpenAI API key is available
         if not self.openai_client:
             logger.info("OpenAI not available, using enhanced template responses")
-            return self._get_enhanced_template_response(user_message, personality, language, call_data, sentiment, context)
+            return self._get_enhanced_template_response(user_message, personality, language, call_data, sentiment, context, knowledge_base, abuse_detection)
+        
+        # Handle abusive content
+        if abuse_detection and abuse_detection.get('is_abusive'):
+            return self._get_abusive_response(personality, language)
         
         try:
             # Build context-aware prompt
@@ -206,10 +235,16 @@ class LightweightResponseGenerator:
             company_name = call_data.get('companyName', 'our company')
             information = call_data.get('information', '')
             
+            # Add knowledge base context if available
+            kb_context = ""
+            if knowledge_base:
+                kb_content = "\n".join([f"- {kb.get('title', '')}: {kb.get('content', '')[:200]}..." for kb in knowledge_base[:3]])
+                kb_context = f"\n\nCompany Knowledge Base:\n{kb_content}"
+            
             context_prompt = f"""
 Business Context:
 - Company: {company_name}
-- Service Info: {information}
+- Service Info: {information}{kb_context}
 - This is a B2B voice call for cloud services
 
 Previous conversation: {json.dumps(context[-2:]) if context else 'None'}
@@ -217,10 +252,11 @@ Previous conversation: {json.dumps(context[-2:]) if context else 'None'}
 User said: "{user_message}"
 
 Respond as {personality} in {language}. Focus on:
-1. Addressing user's specific question/concern
-2. Mentioning relevant cloud services benefits
-3. Offering to connect with technical team if appropriate
-4. Matching user's emotional tone
+1. Use knowledge base info to answer specific questions
+2. Addressing user's specific question/concern
+3. Mentioning relevant services from knowledge base
+4. Offering to connect with technical team if appropriate
+5. Matching user's emotional tone
 """
             
             response = self.openai_client.chat.completions.create(
@@ -237,101 +273,189 @@ Respond as {personality} in {language}. Focus on:
             
         except Exception as e:
             logger.error(f"OpenAI generation failed: {e}")
-            return self._get_enhanced_template_response(user_message, personality, language, call_data, sentiment, context)
+            return self._get_enhanced_template_response(user_message, personality, language, call_data, sentiment, context, knowledge_base)
     
     def _get_enhanced_template_response(self, user_message: str, personality: str, 
-                                      language: str, call_data: Dict, sentiment: Dict, context: List) -> str:
-        """Enhanced template responses with sentiment and context awareness"""
+                                      language: str, call_data: Dict, sentiment: Dict, context: List, knowledge_base: List = None, abuse_detection: Dict = None) -> str:
+        """Enhanced template responses with sentiment, context awareness AND knowledge base integration"""
+        # Handle abusive content first
+        if abuse_detection and abuse_detection.get('is_abusive'):
+            return self._get_abusive_response(personality, language)
+        
         company_name = call_data.get('companyName', 'our company')
         
         # Classify intent
         intent = self._classify_intent(user_message)
         
-        # Get base templates - ALL 4 PERSONALITIES
-        templates = {
-            'priyanshu': {
-                'interested': {
-                    'english': f"That's wonderful! I'm glad you're interested in {company_name}'s cloud solutions. Our services can significantly benefit your business with enhanced security and cost savings. Would you like me to connect you with our technical team?",
-                    'hindi': f"Bahut accha! Main khush hun ki aap {company_name} ke cloud solutions mein interested hain. Hamare services aapke business ko security aur cost savings ke saath fayda pahuncha sakte hain. Kya main aapko technical team se connect kar dun?"
-                },
-                'services': {
-                    'english': f"Great question! {company_name} provides comprehensive cloud infrastructure including secure hosting, automated backups, 24/7 monitoring, and enterprise-grade security. Would you like me to connect you with our technical specialist?",
-                    'hindi': f"Bahut accha sawal! {company_name} comprehensive cloud infrastructure provide karta hai jisme secure hosting, automated backups, 24/7 monitoring, aur enterprise-grade security hai. Technical specialist se connect karna chahenge?"
-                },
-                'pricing': {
-                    'english': f"I understand pricing is important. {company_name}'s solutions typically save businesses 20-40% on cloud expenses. For accurate pricing tailored to your needs, shall I connect you with our team?",
-                    'hindi': f"Main samajh sakta hun pricing important hai. {company_name} ke solutions typically 20-40% cloud expenses save karte hain. Aapke needs ke liye accurate pricing ke liye team se connect karein?"
-                }
-            },
-            'tanmay': {
-                'interested': {
-                    'english': f"Awesome! That's so exciting! {company_name}'s cloud services are absolutely amazing and can totally transform your business. Want me to get you connected with our tech experts?",
-                    'hindi': f"Zabardast! Ye bahut exciting hai! {company_name} ke cloud services bilkul amazing hain aur business ko transform kar sakte hain. Tech experts se connect karna chahenge?"
-                },
-                'services': {
-                    'english': f"Oh wow, great question! {company_name} has this super cool cloud platform with hosting, storage, security - the whole package! Want to chat with our specialists?",
-                    'hindi': f"Wow, bahut accha question! {company_name} ke paas ye super cool cloud platform hai hosting, storage, security ke saath - pura package! Specialists se baat karna chahenge?"
-                },
-                'pricing': {
-                    'english': f"Great question about pricing! {company_name}'s rates are super competitive and most clients save tons of money. Want me to get you connected for a custom quote?",
-                    'hindi': f"Pricing ke baare mein great question! {company_name} ke rates super competitive hain aur clients ka bahut paisa save hota hai. Custom quote ke liye connect karna chahenge?"
-                }
-            },
-            'ekta': {
-                'interested': {
-                    'english': f"Thank you very much for your interest. I am pleased to inform you that {company_name}'s cloud solutions offer exceptional value and reliability. May I connect you with our distinguished technical team?",
-                    'hindi': f"Aapke interest ke liye bahut dhanyawad. Main aapko batane mein khushi mehsus kar rahi hun ki {company_name} ke cloud solutions exceptional value aur reliability offer karte hain. Kya main aapko distinguished technical team se connect kar sakti hun?"
-                },
-                'services': {
-                    'english': f"That is an excellent inquiry. {company_name} provides enterprise-grade cloud infrastructure services with comprehensive security protocols. May I respectfully suggest connecting you with our specialists?",
-                    'hindi': f"Ye ek excellent inquiry hai. {company_name} enterprise-grade cloud infrastructure services comprehensive security protocols ke saath provide karta hai. Kya main respectfully suggest kar sakti hun ki specialists se connect karein?"
-                },
-                'pricing': {
-                    'english': f"I appreciate your inquiry regarding pricing. {company_name} offers cost-effective solutions with transparent pricing models. May I arrange a consultation with our financial specialists?",
-                    'hindi': f"Pricing ke regarding aapki inquiry ke liye appreciate karti hun. {company_name} cost-effective solutions transparent pricing models ke saath offer karta hai. Financial specialists ke saath consultation arrange kar sakti hun?"
-                }
-            },
-            'priyanka': {
-                'interested': {
-                    'english': f"Excellent! From a technical perspective, {company_name}'s cloud infrastructure utilizes advanced virtualization and microservices architecture. Shall I connect you with our solutions architect?",
-                    'hindi': f"Excellent! Technical perspective se, {company_name} ke cloud infrastructure mein advanced virtualization aur microservices architecture use hoti hai. Kya main aapko solutions architect se connect kar dun?"
-                },
-                'services': {
-                    'english': f"From a technical standpoint, {company_name}'s platform provides IaaS, PaaS, and SaaS solutions with auto-scaling capabilities and advanced analytics. Would you like to discuss the architecture with our engineering team?",
-                    'hindi': f"Technical standpoint se, {company_name} ka platform IaaS, PaaS, aur SaaS solutions auto-scaling capabilities aur advanced analytics ke saath provide karta hai. Engineering team ke saath architecture discuss karna chahenge?"
-                },
-                'pricing': {
-                    'english': f"From a cost-optimization perspective, {company_name}'s solutions offer ROI through efficient resource allocation and automated scaling. Shall I connect you with our technical sales team for detailed metrics?",
-                    'hindi': f"Cost-optimization perspective se, {company_name} ke solutions efficient resource allocation aur automated scaling ke through ROI offer karte hain. Detailed metrics ke liye technical sales team se connect karein?"
-                }
-            }
-        }
+        # Search knowledge base for relevant content
+        relevant_kb_info = self._search_knowledge_base(user_message, intent, knowledge_base or [])
         
-        # Get response based on personality and intent
-        p_templates = templates.get(personality, templates['priyanshu'])
-        intent_templates = p_templates.get(intent, p_templates.get('interested', p_templates[list(p_templates.keys())[0]]))
-        response = intent_templates.get(language, intent_templates.get('english', list(intent_templates.values())[0]))
+        # Get base templates with knowledge base integration
+        response = self._get_kb_enhanced_response(personality, language, intent, company_name, relevant_kb_info, sentiment)
         
         # Adjust for sentiment
         if sentiment['label'] == 'negative' and sentiment['score'] > 0.7:
             if language == 'hindi':
-                response = f"Main samajh sakta hun. {response}"
+                response = f"Main samajh sakta hun aapki pareshani. {response}"
             else:
                 response = f"I understand your concerns. {response}"
+        elif sentiment['label'] == 'positive' and sentiment['score'] > 0.7:
+            if language == 'hindi':
+                response = f"Bahut khushi ki baat hai! {response}"
+            else:
+                response = f"That's wonderful to hear! {response}"
+        
+        return response
+    
+    def _search_knowledge_base(self, user_message: str, intent: str, knowledge_base: List) -> str:
+        """Search knowledge base for relevant content based on user message and intent"""
+        if not knowledge_base:
+            return ""
+        
+        user_msg_lower = user_message.lower()
+        relevant_content = []
+        
+        # Intent-based keywords with enhanced patterns
+        intent_keywords = {
+            'services': ['service', 'offer', 'provide', 'do', 'kya', 'seva', 'product', 'solution', 'help', 'support', 'feature', 'capability'],
+            'pricing': ['price', 'cost', 'rate', 'fee', 'paisa', 'kitna', 'amount', 'charge', 'expensive', 'cheap', 'budget', 'plan'],
+            'interested': ['interested', 'good', 'great', 'accha', 'haan', 'yes', 'amazing', 'perfect', 'excellent'],
+            'contact': ['contact', 'phone', 'email', 'address', 'sampark', 'call', 'reach', 'connect', 'meeting'],
+            'complaint': ['problem', 'issue', 'complaint', 'wrong', 'error', 'galat', 'pareshani', 'dikkat', 'bad'],
+            'demo': ['demo', 'show', 'example', 'trial', 'test', 'dikhao', 'sample']
+        }
+        
+        # Search through knowledge base
+        for kb_item in knowledge_base:
+            content = kb_item.get('content', '').lower()
+            title = kb_item.get('title', '').lower()
+            
+            # Check for direct keyword matches
+            keywords = intent_keywords.get(intent, [])
+            for keyword in keywords:
+                if keyword in user_msg_lower and (keyword in content or keyword in title):
+                    relevant_content.append(kb_item.get('content', '')[:300])
+                    break
+            
+            # Check for specific words from user message
+            user_words = user_msg_lower.split()
+            for word in user_words:
+                if len(word) > 3 and word in content:
+                    relevant_content.append(kb_item.get('content', '')[:300])
+                    break
+        
+        return " ".join(relevant_content[:2])  # Limit to 2 most relevant items
+    
+    def _get_kb_enhanced_response(self, personality: str, language: str, intent: str, 
+                                company_name: str, kb_info: str, sentiment: Dict) -> str:
+        """Generate response using knowledge base content with personality and language"""
+        
+        # If no knowledge base info, use generic response
+        if not kb_info:
+            kb_info = "comprehensive business solutions"
+        
+        # Personality-based response templates with knowledge base integration
+        templates = {
+            'priyanshu': {
+                'english': f"Thank you for your inquiry. Based on our documentation, {company_name} offers {kb_info}. I'd be happy to connect you with our technical team for detailed information.",
+                'hindi': f"Aapke sawal ke liye dhanyawad. Hamare documentation ke anusaar, {company_name} {kb_info} provide karta hai. Main aapko technical team se connect karne mein khushi se madad karunga."
+            },
+            'tanmay': {
+                'english': f"Oh wow, great question! {company_name} has some amazing stuff - {kb_info}! This is so exciting! Want me to get you connected with our awesome team?",
+                'hindi': f"Wow, bahut accha question! {company_name} ke paas kuch amazing cheezein hain - {kb_info}! Ye bahut exciting hai! Kya main aapko hamare awesome team se connect kar dun?"
+            },
+            'ekta': {
+                'english': f"I appreciate your inquiry. According to our official documentation, {company_name} provides {kb_info}. May I respectfully arrange a consultation with our distinguished specialists?",
+                'hindi': f"Aapki inquiry ke liye appreciate karti hun. Hamare official documentation ke anusaar, {company_name} {kb_info} provide karta hai. Kya main respectfully hamare distinguished specialists ke saath consultation arrange kar sakti hun?"
+            },
+            'priyanka': {
+                'english': f"From a technical perspective, our documentation shows that {company_name} implements {kb_info}. Shall I connect you with our solutions architect for detailed technical specifications?",
+                'hindi': f"Technical perspective se, hamare documentation mein dikhaya gaya hai ki {company_name} {kb_info} implement karta hai. Kya main aapko detailed technical specifications ke liye solutions architect se connect kar dun?"
+            }
+        }
+        
+        # Get personality template
+        p_template = templates.get(personality, templates['priyanshu'])
+        response = p_template.get(language, p_template['english'])
+        
+        # Adjust for specific intents
+        if intent == 'pricing' and 'price' in kb_info.lower():
+            if language == 'hindi':
+                response = response.replace('technical team', 'pricing team')
+            else:
+                response = response.replace('technical team', 'pricing team')
         
         return response
     
     def _classify_intent(self, user_message: str) -> str:
-        """Classify user intent from message"""
+        """Dynamic intent classification with scoring system"""
         msg = user_message.lower()
-        if any(word in msg for word in ['interested', 'yes', 'accha', 'haan', 'good', 'great']):
-            return 'interested'
-        elif any(word in msg for word in ['what', 'kya', 'cloud', 'service', 'batao', 'tell']):
-            return 'services'
-        elif any(word in msg for word in ['price', 'cost', 'paisa', 'kitna', 'expensive', 'cheap']):
-            return 'pricing'
+        
+        # Enhanced intent keywords with weights
+        intent_patterns = {
+            'services': {
+                'keywords': ['service', 'offer', 'provide', 'do', 'kya', 'seva', 'product', 'solution', 'help', 'support', 'feature', 'capability'],
+                'phrases': ['what do you', 'kya aap', 'tell me about', 'batao', 'explain', 'samjhao'],
+                'weight': 1.0
+            },
+            'pricing': {
+                'keywords': ['price', 'cost', 'rate', 'fee', 'paisa', 'kitna', 'amount', 'charge', 'expensive', 'cheap', 'budget', 'plan'],
+                'phrases': ['how much', 'kitna paisa', 'cost me', 'price for', 'rate card'],
+                'weight': 1.2
+            },
+            'interested': {
+                'keywords': ['interested', 'yes', 'accha', 'haan', 'good', 'great', 'amazing', 'perfect', 'excellent', 'wonderful'],
+                'phrases': ['sounds good', 'accha lagta', 'i like', 'pasand hai'],
+                'weight': 0.8
+            },
+            'contact': {
+                'keywords': ['contact', 'phone', 'email', 'address', 'sampark', 'call', 'reach', 'connect', 'meeting'],
+                'phrases': ['get in touch', 'sampark karna', 'call me', 'contact details'],
+                'weight': 1.1
+            },
+            'complaint': {
+                'keywords': ['problem', 'issue', 'complaint', 'wrong', 'error', 'galat', 'pareshani', 'dikkat', 'bad'],
+                'phrases': ['not working', 'kaam nahi', 'having trouble', 'problem hai'],
+                'weight': 1.3
+            },
+            'demo': {
+                'keywords': ['demo', 'show', 'example', 'trial', 'test', 'dikhao', 'example', 'sample'],
+                'phrases': ['show me', 'dikhao mujhe', 'can i see', 'demo chahiye'],
+                'weight': 1.0
+            }
+        }
+        
+        intent_scores = {}
+        
+        # Calculate scores for each intent
+        for intent, patterns in intent_patterns.items():
+            score = 0
+            
+            # Check keywords
+            for keyword in patterns['keywords']:
+                if keyword in msg:
+                    score += patterns['weight']
+            
+            # Check phrases (higher weight)
+            for phrase in patterns['phrases']:
+                if phrase in msg:
+                    score += patterns['weight'] * 1.5
+            
+            intent_scores[intent] = score
+        
+        # Return intent with highest score, or 'interested' as default
+        if max(intent_scores.values()) > 0:
+            return max(intent_scores, key=intent_scores.get)
         else:
             return 'interested'
+    
+    def _get_abusive_response(self, personality: str, language: str) -> str:
+        """Generate appropriate response for abusive content"""
+        responses = {
+            'english': "I understand you may be frustrated, but I'd appreciate if we could keep our conversation respectful. How can I help you today?",
+            'hindi': "Main samajh sakta hun aap pareshaan ho sakte hain, lekin main appreciate karunga agar hum apni conversation respectful rakh saken. Aaj main aapki kaise madad kar sakta hun?"
+        }
+        return responses.get(language, responses['english'])
     
     def _fallback_response(self, personality: str, language: str) -> Dict:
         """Emergency fallback response"""

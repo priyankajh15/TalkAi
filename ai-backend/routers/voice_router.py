@@ -12,6 +12,7 @@ class VoiceRequest(BaseModel):
     call_data: Optional[Dict[str, Any]] = None
     voice_settings: Optional[Dict[str, Any]] = None
     call_sid: Optional[str] = None
+    knowledge_base: Optional[List[Dict[str, str]]] = []
 
 class VoiceResponse(BaseModel):
     ai_response: str
@@ -35,7 +36,8 @@ async def generate_voice_response(request: VoiceRequest):
             user_message=request.user_message,
             call_data=request.call_data or {},
             voice_settings=request.voice_settings or {},
-            call_sid=request.call_sid
+            call_sid=request.call_sid,
+            knowledge_base=request.knowledge_base or []
         )
         
         logger.info(f"Generated response - Language: {result['detected_language']}, "
