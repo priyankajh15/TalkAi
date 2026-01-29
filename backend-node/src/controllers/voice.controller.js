@@ -404,27 +404,36 @@ async function generateContextualResponse(userResponse, callData) {
       ? process.env.AI_BACKEND_URL_PROD 
       : process.env.AI_BACKEND_URL_LOCAL;
     
+    console.log('=== AI BACKEND REQUEST ===');
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('AI Backend URL:', AI_BACKEND_URL);
+    console.log('User Response:', userResponse);
+    console.log('Knowledge Base Items:', callData?.knowledgeBase?.length || 0);
+    
     const axios = require('axios');
     
-    console.log('Calling Phase 3 Python AI backend...');
-    const response = await axios.post(`${AI_BACKEND_URL}/voice/voice-response`, {
+    const requestData = {
       user_message: userResponse,
       call_data: callData,
       voice_settings: callData?.voiceSettings,
       call_sid: callData?.callSid,
-      knowledge_base: callData?.knowledgeBase || [] // Send PDF knowledge to AI
-    }, {
-      timeout: 8000  // Increased timeout for LLM processing
+      knowledge_base: callData?.knowledgeBase || []
+    };
+    
+    console.log('Sending request to Python AI backend...');
+    const response = await axios.post(`${AI_BACKEND_URL}/voice/voice-response`, requestData, {
+      timeout: 8000,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
     
-    console.log('Phase 3 AI response:', {
-      response: response.data.ai_response,
-      language: response.data.detected_language,
-      sentiment: response.data.sentiment.label,
-      confidence: response.data.language_confidence,
-      context_used: response.data.context_used,
-      abusive_detected: response.data.abusive_detected
-    });
+    console.log('=== AI BACKEND RESPONSE ===');
+    console.log('Status:', response.status);
+    console.log('AI Response:', response.data.ai_response?.substring(0, 100) + '...');
+    console.log('Language:', response.data.detected_language);
+    console.log('Sentiment:', response.data.sentiment?.label);
+    console.log('Abusive detected:', response.data.abusive_detected);
     
     // Update call log if abusive content detected
     if (response.data.abusive_detected) {
@@ -443,7 +452,12 @@ async function generateContextualResponse(userResponse, callData) {
     return response.data.ai_response;
     
   } catch (error) {
-    console.error('Phase 3 Python AI failed:', error.message);
+    console.error('=== AI BACKEND ERROR ===');
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Response status:', error.response?.status);
+    console.error('Response data:', error.response?.data);
+    
     // Enhanced fallback with personality
     const personality = callData?.voiceSettings?.personality || 'priyanshu';
     const fallbacks = {

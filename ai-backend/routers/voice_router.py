@@ -29,7 +29,11 @@ async def generate_voice_response(request: VoiceRequest):
     sentiment analysis, conversation memory, and LLM-powered responses
     """
     try:
-        logger.info(f"Phase 3 Voice request: {request.user_message}")
+        logger.info(f"=== VOICE REQUEST RECEIVED ===")
+        logger.info(f"User message: {request.user_message}")
+        logger.info(f"Call data: {request.call_data}")
+        logger.info(f"Knowledge base items: {len(request.knowledge_base or [])}")
+        logger.info(f"Voice settings: {request.voice_settings}")
         
         # Generate dynamic response using advanced AI engine
         result = await ai_engine.generate_response(
@@ -40,9 +44,11 @@ async def generate_voice_response(request: VoiceRequest):
             knowledge_base=request.knowledge_base or []
         )
         
-        logger.info(f"Generated response - Language: {result['detected_language']}, "
-                   f"Sentiment: {result['sentiment']['label']}, "
-                   f"Context: {result['context_used']}")
+        logger.info(f"=== RESPONSE GENERATED ===")
+        logger.info(f"AI Response: {result['ai_response'][:100]}...")
+        logger.info(f"Language: {result['detected_language']}")
+        logger.info(f"Sentiment: {result['sentiment']['label']}")
+        logger.info(f"Context used: {result['context_used']}")
         
         return VoiceResponse(
             ai_response=result['ai_response'],
@@ -54,7 +60,9 @@ async def generate_voice_response(request: VoiceRequest):
         )
         
     except Exception as e:
-        logger.error(f"Phase 3 Voice response error: {e}")
+        logger.error(f"=== VOICE RESPONSE ERROR ===")
+        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Phase 3: All static response logic moved to ai_engine.py
