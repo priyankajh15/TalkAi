@@ -9,7 +9,11 @@ const DashboardLayout = ({ children }) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ 
+      display: 'flex', 
+      minHeight: '100vh',
+      overflow: 'hidden' // Prevent body scroll issues on mobile
+    }}>
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -20,15 +24,21 @@ const DashboardLayout = ({ children }) => {
         marginLeft: isMobile ? 0 : (desktopSidebarExpanded ? '280px' : '70px'),
         background: '#000000',
         minHeight: '100vh',
-        transition: 'margin-left 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)', // Slower, smooth push
+        transition: 'margin-left 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        width: isMobile ? '100%' : 'auto', // Full width on mobile
+        overflow: 'hidden' // Prevent horizontal scroll on mobile
       }}>
         {/* Header with Hamburger - Mobile Only */}
         <div style={{
-          padding: '20px',
+          padding: '15px 20px',
           borderBottom: '1px solid rgba(255,255,255,0.1)',
           alignItems: 'center',
-          height: '80px',
-          display: isMobile ? 'flex' : 'none' // Hide completely on desktop
+          height: '60px',
+          display: isMobile ? 'flex' : 'none',
+          position: 'sticky',
+          top: 0,
+          background: '#000000',
+          zIndex: 10
         }}>
           <HamburgerButton
             isOpen={sidebarOpen}
@@ -36,7 +46,13 @@ const DashboardLayout = ({ children }) => {
           />
         </div>
 
-        {children}
+        <div style={{
+          height: isMobile ? 'calc(100vh - 60px)' : '100vh',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}>
+          {children}
+        </div>
       </div>
     </div>
   );

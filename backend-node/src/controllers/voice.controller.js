@@ -1,6 +1,7 @@
 const twilio = require('twilio');
 const logger = require('../config/logger');
 const CallLog = require('../models/CallLog.model');
+const KnowledgeBase = require('../models/KnowledgeBase.model');
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;

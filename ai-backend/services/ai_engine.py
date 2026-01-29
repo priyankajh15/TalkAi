@@ -42,35 +42,50 @@ class LightweightLanguageDetector:
     
     @staticmethod
     def detect_language(text: str, user_preference: str = 'auto') -> Tuple[str, float]:
-        """Detect language with confidence score"""
+        """Enhanced language detection with better Hindi support"""
         if user_preference in ['hi-IN', 'hindi']:
             return 'hindi', 1.0
         if user_preference in ['en-IN', 'english']:
             return 'english', 1.0
         
         try:
-            # Use langdetect for primary detection
-            detected = detect(text)
-            confidence = 0.8
-            
-            # Check for Hinglish (mixed Hindi-English)
-            hindi_words = ['hai', 'kya', 'mein', 'aap', 'hum', 'baare', 'ke', 'se', 'main', 
-                          'acha', 'accha', 'nahi', 'haan', 'paisa', 'rupaye', 'samay', 'business']
-            english_words = ['yes', 'no', 'good', 'service', 'cloud', 'price', 'cost', 'business']
-            
             text_lower = text.lower()
+            
+            # Enhanced Hindi word detection
+            hindi_words = ['hai', 'kya', 'mein', 'main', 'aap', 'hum', 'baare', 'ke', 'se', 
+                          'acha', 'accha', 'nahi', 'haan', 'paisa', 'rupaye', 'samay', 
+                          'business', 'kaam', 'kaise', 'kahan', 'kab', 'kyun', 'kyu',
+                          'batao', 'bolo', 'samjhao', 'chahiye', 'chahte', 'pasand',
+                          'theek', 'sahi', 'galat', 'problem', 'pareshani', 'madad',
+                          'help', 'service', 'company', 'team', 'price', 'cost']
+            
+            english_words = ['yes', 'no', 'good', 'bad', 'service', 'cloud', 'price', 
+                           'cost', 'business', 'company', 'team', 'help', 'support',
+                           'what', 'how', 'when', 'where', 'why', 'can', 'will',
+                           'would', 'should', 'could', 'tell', 'show', 'explain']
+            
+            # Count matches
             hindi_count = sum(1 for word in hindi_words if word in text_lower)
             english_count = sum(1 for word in english_words if word in text_lower)
             
-            # Hinglish detection
-            if hindi_count > 0 and english_count > 0:
-                return 'hinglish', 0.9
-            elif hindi_count >= 2:
-                return 'hindi', 0.85
-            elif detected == 'hi':
-                return 'hindi', confidence
+            # Use langdetect as secondary check
+            detected_lang = 'en'
+            try:
+                detected_lang = detect(text)
+            except:
+                pass
+            
+            # Decision logic
+            if hindi_count >= 2:  # Strong Hindi indicators
+                return 'hindi', 0.9
+            elif hindi_count > 0 and english_count > 0:  # Mixed (Hinglish)
+                return 'hinglish', 0.8
+            elif detected_lang == 'hi':
+                return 'hindi', 0.8
+            elif english_count >= 2:
+                return 'english', 0.9
             else:
-                return 'english', confidence
+                return 'english', 0.7  # Default to English
                 
         except Exception as e:
             logger.warning(f"Language detection failed: {e}")
@@ -80,10 +95,15 @@ class LightweightSentimentAnalyzer:
     """Lightweight sentiment analysis using TextBlob only"""
     
     def __init__(self):
-        # Abusive words in Hindi and English
+        # Enhanced abusive words in Hindi and English
         self.abusive_words = {
-            'english': ['fuck', 'shit', 'damn', 'bastard', 'bitch', 'asshole', 'idiot', 'stupid', 'moron'],
-            'hindi': ['chutiya', 'madarchod', 'bhenchod', 'randi', 'saala', 'kamina', 'harami', 'gandu', 'bakchod']
+            'english': ['fuck', 'shit', 'damn', 'bastard', 'bitch', 'asshole', 'idiot', 
+                       'stupid', 'moron', 'dumb', 'fool', 'loser', 'suck', 'sucks',
+                       'hate', 'worst', 'terrible', 'awful', 'garbage', 'trash'],
+            'hindi': ['chutiya', 'madarchod', 'bhenchod', 'randi', 'saala', 'kamina', 
+                     'harami', 'gandu', 'bakchod', 'bhosdike', 'laude', 'lodu',
+                     'gaandu', 'chodu', 'randwa', 'kutiya', 'kutta', 'pagal',
+                     'bewakoof', 'gadha', 'ullu']
         }
     
     def analyze_sentiment(self, text: str) -> Dict[str, float]:
@@ -102,12 +122,27 @@ class LightweightSentimentAnalyzer:
             return {'label': 'neutral', 'score': 0.5}
     
     def detect_abusive_content(self, text: str) -> Dict[str, bool]:
-        """Detect abusive words in Hindi and English"""
+        """Enhanced abusive content detection with partial matching"""
         text_lower = text.lower()
         
-        # Check for abusive words
+        # Check for exact matches
         english_abuse = any(word in text_lower for word in self.abusive_words['english'])
         hindi_abuse = any(word in text_lower for word in self.abusive_words['hindi'])
+        
+        # Check for partial matches (for variations)
+        if not english_abuse:
+            for word in self.abusive_words['english']:
+                if len(word) > 4:  # Only check longer words for partial matches
+                    if word[:4] in text_lower or word[:-1] in text_lower:
+                        english_abuse = True
+                        break
+        
+        if not hindi_abuse:
+            for word in self.abusive_words['hindi']:
+                if len(word) > 4:
+                    if word[:4] in text_lower or word[:-1] in text_lower:
+                        hindi_abuse = True
+                        break
         
         return {
             'is_abusive': english_abuse or hindi_abuse,
@@ -314,82 +349,90 @@ Respond as {personality} in {language}. Focus on:
         
         user_msg_lower = user_message.lower()
         relevant_content = []
+        match_scores = []
         
-        # Search through knowledge base with simple word matching
+        # Enhanced search with better matching
         for kb_item in knowledge_base:
             content = kb_item.get('content', '').lower()
             title = kb_item.get('title', '').lower()
             
-            # Check for any word matches from user message (3+ characters)
-            user_words = [word for word in user_msg_lower.split() if len(word) > 2]
+            # Get meaningful words (3+ characters, not common words)
+            user_words = [word for word in user_msg_lower.split() 
+                         if len(word) > 2 and word not in ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'hai', 'aur', 'kya', 'koi']]
             
+            score = 0
+            matched_words = []
+            
+            # Score based on word matches
             for word in user_words:
-                if word in content or word in title:
-                    # Found relevant content, add it
-                    relevant_content.append(kb_item.get('content', '')[:500])
-                    break
+                if word in content:
+                    score += 2  # Content match
+                    matched_words.append(word)
+                elif word in title:
+                    score += 3  # Title match (higher priority)
+                    matched_words.append(word)
+                # Partial matches
+                elif any(word in content_word for content_word in content.split() if len(content_word) > 4):
+                    score += 1
+            
+            if score > 0:
+                match_scores.append((score, kb_item, matched_words))
         
-        # If we found relevant content, return it
-        if relevant_content:
-            return " ".join(relevant_content[:2])  # Return top 2 matches
+        # Sort by score and return best matches
+        if match_scores:
+            match_scores.sort(key=lambda x: x[0], reverse=True)
+            # Return top 2 matches with highest scores
+            top_matches = match_scores[:2]
+            relevant_content = [item[1].get('content', '')[:400] for item in top_matches]
+            return " ".join(relevant_content)
         
-        # If no specific matches, return first KB item as fallback
+        # If no matches found, return first KB item as fallback
         if knowledge_base:
-            return knowledge_base[0].get('content', '')[:500]
+            return knowledge_base[0].get('content', '')[:400]
         
         return ""
     
     def _get_kb_enhanced_response(self, personality: str, language: str, intent: str, 
                                 company_name: str, kb_info: str, sentiment: Dict) -> str:
-        """Generate response using knowledge base content with personality and language"""
+        """Generate response prioritizing knowledge base content over business templates"""
         
-        # If we have knowledge base info, use it directly
-        if kb_info and len(kb_info.strip()) > 10:
-            # Personality-based response templates with actual knowledge base content
-            templates = {
-                'priyanshu': {
-                    'english': f"Based on our knowledge base, here's what I can tell you: {kb_info[:300]}... Would you like me to connect you with our technical team for more detailed information?",
-                    'hindi': f"Hamare knowledge base ke anusaar, main aapko ye bata sakta hun: {kb_info[:300]}... Kya aap chahenge ki main aapko technical team se connect kar dun detailed information ke liye?"
-                },
-                'tanmay': {
-                    'english': f"Oh wow, great question! Here's what our knowledge base says: {kb_info[:300]}... This is so exciting! Want me to get you connected with our awesome team for more details?",
-                    'hindi': f"Wow, bahut accha question! Hamare knowledge base mein ye hai: {kb_info[:300]}... Ye bahut exciting hai! Kya main aapko hamare awesome team se connect kar dun more details ke liye?"
-                },
-                'ekta': {
-                    'english': f"According to our official documentation: {kb_info[:300]}... May I respectfully arrange a consultation with our distinguished specialists for comprehensive information?",
-                    'hindi': f"Hamare official documentation ke anusaar: {kb_info[:300]}... Kya main respectfully hamare distinguished specialists ke saath consultation arrange kar sakti hun comprehensive information ke liye?"
-                },
-                'priyanka': {
-                    'english': f"From a technical perspective, our documentation shows: {kb_info[:300]}... Shall I connect you with our solutions architect for detailed technical specifications?",
-                    'hindi': f"Technical perspective se, hamare documentation mein ye hai: {kb_info[:300]}... Kya main aapko detailed technical specifications ke liye solutions architect se connect kar dun?"
+        # PRIORITY 1: Use knowledge base content if available and relevant
+        if kb_info and len(kb_info.strip()) > 20:  # Ensure meaningful content
+            # Personality-based response templates with ACTUAL knowledge base content
+            if language in ['hindi', 'hinglish']:
+                templates = {
+                    'priyanshu': f"Hamare knowledge base ke anusaar: {kb_info[:250]}... Kya aap chahenge ki main aapko technical team se connect kar dun more details ke liye?",
+                    'tanmay': f"Wow! Hamare knowledge base mein ye amazing info hai: {kb_info[:250]}... Ye bahut exciting hai! More details ke liye team se connect karna chahenge?",
+                    'ekta': f"Hamare official documentation ke anusaar: {kb_info[:250]}... Kya main respectfully comprehensive information ke liye specialists arrange kar sakti hun?",
+                    'priyanka': f"Technical perspective se, hamare documentation shows: {kb_info[:250]}... Detailed specifications ke liye solutions architect se connect karna chahenge?"
                 }
+            else:  # English
+                templates = {
+                    'priyanshu': f"Based on our knowledge base: {kb_info[:250]}... Would you like me to connect you with our technical team for more detailed information?",
+                    'tanmay': f"Oh wow! Here's what our knowledge base says: {kb_info[:250]}... This is so exciting! Want to get connected with our team for more details?",
+                    'ekta': f"According to our official documentation: {kb_info[:250]}... May I respectfully arrange a consultation with our specialists for comprehensive information?",
+                    'priyanka': f"From a technical perspective, our documentation shows: {kb_info[:250]}... Shall I connect you with our solutions architect for detailed specifications?"
+                }
+            
+            return templates.get(personality, templates['priyanshu'])
+        
+        # PRIORITY 2: Fallback to generic business responses only if NO KB content
+        if language in ['hindi', 'hinglish']:
+            templates = {
+                'priyanshu': f"Aapke sawal ke liye dhanyawad. {company_name} comprehensive business solutions provide karta hai. Main aapko technical team se connect karne mein madad kar sakta hun.",
+                'tanmay': f"Wow, bahut accha question! {company_name} ke paas amazing business solutions hain! Kya main aapko hamare awesome team se connect kar dun?",
+                'ekta': f"Aapki inquiry appreciate karti hun. {company_name} comprehensive business solutions provide karta hai. Kya main specialists ke saath consultation arrange kar sakti hun?",
+                'priyanka': f"Technical perspective se, {company_name} comprehensive business solutions implement karta hai. Solutions architect se connect karna chahenge?"
             }
-        else:
-            # Fallback to generic business responses if no KB content
+        else:  # English
             templates = {
-                'priyanshu': {
-                    'english': f"Thank you for your inquiry. {company_name} offers comprehensive business solutions. I'd be happy to connect you with our technical team for detailed information.",
-                    'hindi': f"Aapke sawal ke liye dhanyawad. {company_name} comprehensive business solutions provide karta hai. Main aapko technical team se connect karne mein khushi se madad karunga."
-                },
-                'tanmay': {
-                    'english': f"Oh wow, great question! {company_name} has some amazing business solutions! This is so exciting! Want me to get you connected with our awesome team?",
-                    'hindi': f"Wow, bahut accha question! {company_name} ke paas kuch amazing business solutions hain! Ye bahut exciting hai! Kya main aapko hamare awesome team se connect kar dun?"
-                },
-                'ekta': {
-                    'english': f"I appreciate your inquiry. {company_name} provides comprehensive business solutions. May I respectfully arrange a consultation with our distinguished specialists?",
-                    'hindi': f"Aapki inquiry ke liye appreciate karti hun. {company_name} comprehensive business solutions provide karta hai. Kya main respectfully hamare distinguished specialists ke saath consultation arrange kar sakti hun?"
-                },
-                'priyanka': {
-                    'english': f"From a technical perspective, {company_name} implements comprehensive business solutions. Shall I connect you with our solutions architect for detailed technical specifications?",
-                    'hindi': f"Technical perspective se, {company_name} comprehensive business solutions implement karta hai. Kya main aapko detailed technical specifications ke liye solutions architect se connect kar dun?"
-                }
+                'priyanshu': f"Thank you for your inquiry. {company_name} offers comprehensive business solutions. I'd be happy to connect you with our technical team for detailed information.",
+                'tanmay': f"Oh wow, great question! {company_name} has some amazing business solutions! This is so exciting! Want me to get you connected with our awesome team?",
+                'ekta': f"I appreciate your inquiry. {company_name} provides comprehensive business solutions. May I respectfully arrange a consultation with our distinguished specialists?",
+                'priyanka': f"From a technical perspective, {company_name} implements comprehensive business solutions. Shall I connect you with our solutions architect for detailed technical specifications?"
             }
         
-        # Get personality template
-        p_template = templates.get(personality, templates['priyanshu'])
-        response = p_template.get(language, p_template['english'])
-        
-        return response
+        return templates.get(personality, templates['priyanshu'])
     
     def _classify_intent(self, user_message: str) -> str:
         """Dynamic intent classification with scoring system"""
