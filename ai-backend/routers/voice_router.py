@@ -29,12 +29,6 @@ async def generate_voice_response(request: VoiceRequest):
     sentiment analysis, conversation memory, and LLM-powered responses
     """
     try:
-        logger.info(f"=== VOICE REQUEST RECEIVED ===")
-        logger.info(f"User message: {request.user_message}")
-        logger.info(f"Call data: {request.call_data}")
-        logger.info(f"Knowledge base items: {len(request.knowledge_base or [])}")
-        logger.info(f"Voice settings: {request.voice_settings}")
-        
         # Generate dynamic response using advanced AI engine
         result = await ai_engine.generate_response(
             user_message=request.user_message,
@@ -43,12 +37,6 @@ async def generate_voice_response(request: VoiceRequest):
             call_sid=request.call_sid,
             knowledge_base=request.knowledge_base or []
         )
-        
-        logger.info(f"=== RESPONSE GENERATED ===")
-        logger.info(f"AI Response: {result['ai_response'][:100]}...")
-        logger.info(f"Language: {result['detected_language']}")
-        logger.info(f"Sentiment: {result['sentiment']['label']}")
-        logger.info(f"Context used: {result['context_used']}")
         
         return VoiceResponse(
             ai_response=result['ai_response'],
@@ -60,9 +48,7 @@ async def generate_voice_response(request: VoiceRequest):
         )
         
     except Exception as e:
-        logger.error(f"=== VOICE RESPONSE ERROR ===")
-        logger.error(f"Error: {str(e)}")
-        logger.error(f"Error type: {type(e).__name__}")
+        print(f"Voice response generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Phase 3: All static response logic moved to ai_engine.py

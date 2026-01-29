@@ -14,7 +14,7 @@ exports.signup = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { companyName, email, password } = req.body;
+    const { companyName, email, password, name } = req.body;
 
     // Check duplicate email
     const existing = await CompanyUser.findOne({ email }).session(session);
@@ -41,7 +41,7 @@ exports.signup = async (req, res) => {
       [
         {
           companyId: company._id,
-          name: "Admin",
+          name: name || "Admin",
           email,
           password: hashedPassword,
         },
@@ -54,8 +54,17 @@ exports.signup = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Signup successful",
-      companyId: company._id,
-      userId: user._id,
+      token: jwt.sign(
+        { userId: user._id, companyId: user.companyId, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      ),
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        companyId: company._id
+      }
     });
   } catch (err) {
     await session.abortTransaction();
@@ -122,6 +131,48 @@ exports.login = async (req, res) => {
       success: false,
       message: "An unexpected error occurred. Please try again later.",
       requestId: req.id,
+    });
+  }
+};
+
+/**
+ * GET CURRENT USER
+ */
+exports.getMe = async (req, res) => {
+  try {
+    const user = await CompanyUser.findById(req.user.userId)
+      .select('-password')
+      .populate('companyId', 'companyName');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    return res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        companyId: user.companyId._id,
+        companyName: user.companyId.companyName
+      }
+    });
+  } catch (err) {
+    logger.error("Get user failed", {
+      requestId: req.id,
+      error: err.message,
+      userId: req.user?.userId
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred",
+      requestId: req.id
     });
   }
 };

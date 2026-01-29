@@ -205,10 +205,16 @@ exports.uploadPDF = async (req, res, next) => {
       category: 'pdf'
     });
 
+    // Check if text extraction failed
+    const extractionFailed = pdfText.includes('Text extraction failed');
+    
     res.status(201).json({
       success: true,
       data: item,
-      message: "PDF uploaded and processed successfully"
+      message: extractionFailed 
+        ? "PDF uploaded but text extraction failed. The AI won't be able to use this content."
+        : "PDF uploaded and processed successfully",
+      extractionFailed
     });
   } catch (err) {
     // Clean up uploaded file on error

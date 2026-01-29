@@ -62,7 +62,7 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      await signup(formData.email, formData.password, formData.companyName);
+      await signup(formData.email, formData.password, formData.companyName, formData.name);
       toast.success('Account created successfully! Welcome to TalkAi!');
       navigate('/dashboard');
     } catch (err) {

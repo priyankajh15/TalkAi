@@ -74,7 +74,14 @@ const KnowledgeBase = () => {
       if (file.type === 'application/pdf' && file.size <= 10 * 1024 * 1024) {
         try {
           const response = await aiAPI.uploadPDF(file);
-          toast.success(`${file.name} uploaded successfully!`);
+          
+          // Check backend response for extraction failure
+          if (response.data.extractionFailed) {
+            toast.error(`${file.name}: ${response.data.message}`);
+          } else {
+            toast.success(`${file.name} uploaded and processed successfully!`);
+          }
+          
           // Reload files to get updated list
           await loadFiles();
         } catch (error) {

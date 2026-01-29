@@ -18,6 +18,16 @@ const CallLogs = () => {
   const [selectedCall, setSelectedCall] = useState(null);
   const [showCallDetails, setShowCallDetails] = useState(false);
   const [playingAudio, setPlayingAudio] = useState({});
+  const [pageSize, setPageSize] = useState(25);
+  const [filters, setFilters] = useState({
+    status: 'all',
+    channelType: 'all',
+    transferred: 'all',
+    minDuration: '',
+    maxDuration: '',
+    startDate: '',
+    endDate: ''
+  });
   const isMobile = useMediaQuery('(max-width: 768px)');
   const debouncedSearch = useDebounce(searchTerm, 400);
 
@@ -33,6 +43,46 @@ const CallLogs = () => {
 
   const callLogs = callLogsData?.data?.callLogs || [];
 
+  // Apply filters to call logs
+  const filteredCallLogs = callLogs.filter(call => {
+    // Search filter
+    if (debouncedSearch) {
+      const searchLower = debouncedSearch.toLowerCase();
+      const matchesSearch = 
+        call.callId?.toLowerCase().includes(searchLower) ||
+        call.receiverNumber?.toLowerCase().includes(searchLower) ||
+        call.botName?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter (AI/Human)
+    if (filters.status !== 'all') {
+      if (filters.status === 'ai' && call.handledBy !== 'AI') return false;
+      if (filters.status === 'human' && call.handledBy !== 'Human') return false;
+    }
+
+    // Duration filters
+    if (filters.minDuration && call.duration < parseInt(filters.minDuration)) return false;
+    if (filters.maxDuration && call.duration > parseInt(filters.maxDuration)) return false;
+
+    // Date filters
+    if (filters.startDate) {
+      const callDate = new Date(call.createdAt).toDateString();
+      const startDate = new Date(filters.startDate).toDateString();
+      if (callDate < startDate) return false;
+    }
+    if (filters.endDate) {
+      const callDate = new Date(call.createdAt).toDateString();
+      const endDate = new Date(filters.endDate).toDateString();
+      if (callDate > endDate) return false;
+    }
+
+    return true;
+  });
+
+  // Apply pagination
+  const paginatedCallLogs = filteredCallLogs.slice(0, pageSize);
+
   const handleViewCall = (call) => {
     setSelectedCall(call);
     setShowCallDetails(true);
@@ -43,6 +93,34 @@ const CallLogs = () => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
+  const exportToCSV = () => {
+    const csvData = filteredCallLogs.map(call => ({
+      'Call Date': formatDate(call.createdAt),
+      'Bot Name': call.handledBy === 'AI' ? (call.botName || 'TalkAI Agent') : 'Human Agent',
+      'From Number': call.callerNumber || '+18648104203',
+      'To Number': call.receiverNumber || 'N/A',
+      'Duration': formatDuration(call.duration),
+      'Call Type': 'Call',
+      'Status': 'completed',
+      'Cost': `$${(call.duration * 0.01).toFixed(2) || '0.00'}`
+    }));
+
+    const csvContent = [
+      Object.keys(csvData[0] || {}).join(','),
+      ...csvData.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `call-logs-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   const formatDate = (dateString) => {
@@ -144,12 +222,17 @@ const CallLogs = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-              <select className="input" style={{ width: '80px', padding: '8px' }}>
-                <option>25</option>
-                <option>50</option>
-                <option>100</option>
+              <select 
+                className="input" 
+                style={{ width: '80px', padding: '8px' }}
+                value={pageSize}
+                onChange={(e) => setPageSize(parseInt(e.target.value))}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
               </select>
-              <button className="btn btn-secondary">CSV</button>
+              <button className="btn btn-secondary" onClick={exportToCSV}>CSV</button>
             </div>
           </div>
 
@@ -163,11 +246,14 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Call Status
                 </label>
-                <select className="input">
-                  <option>All Statuses</option>
-                  <option>Completed</option>
-                  <option>Failed</option>
-                  <option>In Progress</option>
+                <select 
+                  className="input"
+                  value={filters.status}
+                  onChange={(e) => setFilters({...filters, status: e.target.value})}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="ai">AI Handled</option>
+                  <option value="human">Human Handled</option>
                 </select>
               </div>
 
@@ -175,10 +261,14 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Channel Type
                 </label>
-                <select className="input">
-                  <option>All Channels</option>
-                  <option>Inbound</option>
-                  <option>Outbound</option>
+                <select 
+                  className="input"
+                  value={filters.channelType}
+                  onChange={(e) => setFilters({...filters, channelType: e.target.value})}
+                >
+                  <option value="all">All Channels</option>
+                  <option value="inbound">Inbound</option>
+                  <option value="outbound">Outbound</option>
                 </select>
               </div>
 
@@ -186,10 +276,14 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Call Transferred
                 </label>
-                <select className="input">
-                  <option>All</option>
-                  <option>Yes</option>
-                  <option>No</option>
+                <select 
+                  className="input"
+                  value={filters.transferred}
+                  onChange={(e) => setFilters({...filters, transferred: e.target.value})}
+                >
+                  <option value="all">All</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
                 </select>
               </div>
 
@@ -197,28 +291,50 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Duration (Min)
                 </label>
-                <input type="number" placeholder="Min" className="input" />
+                <input 
+                  type="number" 
+                  placeholder="Min" 
+                  className="input"
+                  value={filters.minDuration}
+                  onChange={(e) => setFilters({...filters, minDuration: e.target.value})}
+                />
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Duration (Max)
                 </label>
-                <input type="number" placeholder="Max" className="input" />
+                <input 
+                  type="number" 
+                  placeholder="Max" 
+                  className="input"
+                  value={filters.maxDuration}
+                  onChange={(e) => setFilters({...filters, maxDuration: e.target.value})}
+                />
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Start Date
                 </label>
-                <input type="date" className="input" />
+                <input 
+                  type="date" 
+                  className="input"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                />
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   End Date
                 </label>
-                <input type="date" className="input" />
+                <input 
+                  type="date" 
+                  className="input"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                />
               </div>
             </div>
           )}
@@ -235,49 +351,49 @@ const CallLogs = () => {
               Call Logs
             </h2>
 
-            {!isMobile ? (
-              // Desktop Table View
-              <>
-                {/* Table Header */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
-                  gap: '15px',
-                  padding: '15px 30px',
-                  borderBottom: '1px solid rgba(255,255,255,0.1)',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#999'
-                }}>
-                  <div>Call Date</div>
-                  <div>Bot Name</div>
-                  <div>From Number</div>
-                  <div>To Number</div>
-                  <div>Duration</div>
-                  <div>Call Type</div>
-                  <div>Status</div>
-                  <div>Cost</div>
-                  <div>Recording</div>
-                </div>
-              </>
-            ) : null}
+            {/* Horizontal scroll container */}
+            <div style={{
+              overflowX: 'visible',
+              overflowY: 'visible'
+            }}>
 
-            {/* Empty State or Call Logs */}
-            {callLogs.length === 0 ? (
-              <EmptyState
-                icon={faClipboardList}
-                title="No call logs yet"
-                description="Your AI call history will appear here once customers start calling your phone numbers. Track AI performance, transcripts, and outcomes."
-                actionText="Make Voice Call"
-                onAction={() => navigate('/voice-ai-assistants')}
-              />
-            ) : (
-              <>
-                {/* Call Logs List */}
-                {callLogs.map((call) => (
+              {/* Table Header */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                gap: '15px',
+                padding: '15px 30px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#999'
+              }}>
+                <div>Call Date</div>
+                <div>Bot Name</div>
+                <div>From Number</div>
+                <div>To Number</div>
+                <div>Duration</div>
+                <div>Call Type</div>
+                <div>Status</div>
+                <div>Cost</div>
+                <div>Recording</div>
+              </div>
+
+              {/* Empty State or Call Logs */}
+              {paginatedCallLogs.length === 0 ? (
+                <EmptyState
+                  icon={faClipboardList}
+                  title="No call logs yet"
+                  description="Your AI call history will appear here once you start calling customers. Track AI performance, transcripts, and outcomes."
+                  actionText="Make Voice Call"
+                  onAction={() => navigate('/voice-ai-assistants')}
+                />
+              ) : (
+                /* Call Logs List */
+                paginatedCallLogs.map((call) => (
                   <div key={call._id} style={{
-                    display: isMobile ? 'block' : 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                    display: 'grid',
+                    gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
                     gap: '15px',
                     padding: '20px 30px',
                     borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -292,43 +408,43 @@ const CallLogs = () => {
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
                   }}>
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#fff', fontWeight: '500' }}>
                         {formatDate(call.createdAt)}
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#60a5fa', fontWeight: '500' }}>
                         {call.handledBy === 'AI' ? (call.botName || 'TalkAI Agent') : 'Human Agent'}
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#999', fontFamily: 'monospace' }}>
                         {call.callerNumber || '+18648104203'}
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#999', fontFamily: 'monospace' }}>
                         {call.receiverNumber || 'N/A'}
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#fff' }}>
                         {formatDuration(call.duration)}
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#999' }}>
                         Call
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <span style={{
                         padding: '4px 8px',
                         borderRadius: '12px',
@@ -340,7 +456,7 @@ const CallLogs = () => {
                       </span>
                     </div>
 
-                    <div style={{ marginBottom: isMobile ? '8px' : '0' }}>
+                    <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#4ade80' }}>
                         ${(call.duration * 0.01).toFixed(2) || '0.00'}
                       </div>
@@ -428,9 +544,9 @@ const CallLogs = () => {
                       </div>
                     </div>
                   </div>
-                ))}
-              </>
-            )}
+                ))
+              )}
+            </div>
           </div>
         )}
       </div>

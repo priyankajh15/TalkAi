@@ -37,7 +37,12 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login', { email, password });
       const { token } = response.data;
       
-      const userData = { email };
+      // Get user data after login
+      const userResponse = await api.get('/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const userData = userResponse.data.user;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
@@ -49,21 +54,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signup = async (email, password, companyName) => {
+  const signup = async (email, password, companyName, name) => {
     try {
       const response = await api.post('/auth/signup', { 
         email, 
         password, 
-        companyName 
+        companyName,
+        name
       });
-      const { token, userId, companyId } = response.data;
+      const { token, user } = response.data;
       
-      const userData = { email, userId, companyId };
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(user));
+      setUser(user);
       
-      return userData;
+      return user;
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
@@ -77,11 +82,28 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/';
   };
 
+  // Force refresh user data
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const userResponse = await api.get('/auth/me');
+        const userData = userResponse.data.user;
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+      logout();
+    }
+  };
+
   const value = {
     user,
     login,
     signup,
     logout,
+    refreshUser,
     loading
   };
 

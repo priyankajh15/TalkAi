@@ -46,12 +46,13 @@ exports.makeVoiceCall = async (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
     const webhookUrl = `${isProduction ? process.env.BASE_URL_PROD : process.env.BASE_URL_LOCAL}/api/voice/handle-call`;
     
-    // Get company's knowledge base data
+    // Get company's knowledge base data (only successfully processed PDFs)
     let knowledgeBase = [];
     try {
       const companyKnowledge = await KnowledgeBase.find({
         companyId: req.user?.companyId,
-        isActive: true
+        isActive: true,
+        content: { $not: /Text extraction failed/ } // Exclude failed extractions
       }).select('title content category');
       
       knowledgeBase = companyKnowledge.map(kb => ({
@@ -60,7 +61,7 @@ exports.makeVoiceCall = async (req, res) => {
         category: kb.category
       }));
       
-      console.log(`Found ${knowledgeBase.length} knowledge base items for company`);
+      console.log(`Found ${knowledgeBase.length} usable knowledge base items for company`);
     } catch (kbError) {
       console.error('Failed to fetch knowledge base:', kbError.message);
     }
@@ -235,12 +236,6 @@ exports.handleVoiceResponse = async (req, res) => {
     const callData = null; // No call data available in response handler
     const userResponse = SpeechResult || '';
 
-    // Security: Log only in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('User response received for CallSid:', CallSid);
-      console.log('User said:', userResponse);
-    }
-
     const twiml = new twilio.twiml.VoiceResponse();
 
     // Check for escalation keywords first
@@ -255,18 +250,15 @@ exports.handleVoiceResponse = async (req, res) => {
       const selectedVoice = getVoiceForPersonality(voiceSettings.personality || 'priyanshu');
       
       if (callData?.escalationNumber) {
-        // Transfer to human agent
         twiml.say({
           voice: selectedVoice.voice,
           language: selectedVoice.language
         }, 'Absolutely! I\'ll connect you with one of our technical specialists right away. Please hold on while I transfer you.');
         
-        console.log('Transferring to escalation number:', callData.escalationNumber);
         let dialNumber = callData.escalationNumber;
         if (!dialNumber.startsWith('+')) {
           dialNumber = dialNumber.startsWith('91') ? `+${dialNumber}` : `+91${dialNumber}`;
         }
-        console.log('Dialing formatted number:', dialNumber);
         
         const dial = twiml.dial({
           timeout: 30,
@@ -279,7 +271,6 @@ exports.handleVoiceResponse = async (req, res) => {
           language: selectedVoice.language
         }, 'I was unable to connect you at this time. Please call our main number for assistance.');
       } else {
-        // No escalation number provided - collect contact info
         twiml.say({
           voice: selectedVoice.voice,
           language: selectedVoice.language
@@ -303,16 +294,14 @@ exports.handleVoiceResponse = async (req, res) => {
         }, 'Thank you. Our team will contact you soon. Have a great day!');
       }
     } else {
-      // Generate AI response based on user input using Phase 3 Python AI
+      // Generate AI response
       try {
-        // Add call_sid to callData for conversation memory
         const enhancedCallData = {
           ...callData,
           callSid: CallSid
         };
         
         const aiResponse = await generateContextualResponse(userResponse, enhancedCallData);
-        console.log('Phase 3 AI responding with:', aiResponse);
         
         const voiceSettings = callData?.voiceSettings || {};
         const selectedVoice = getVoiceForPersonality(voiceSettings.personality || 'priyanshu');
@@ -322,7 +311,6 @@ exports.handleVoiceResponse = async (req, res) => {
           language: selectedVoice.language
         }, aiResponse);
 
-        // Ask if they need anything else
         const gather = twiml.gather({
           input: 'speech',
           timeout: 4,
@@ -336,13 +324,12 @@ exports.handleVoiceResponse = async (req, res) => {
           language: selectedVoice.language
         }, 'Is there anything else you\'d like to know?');
 
-        // Final fallback
         twiml.say({
           voice: selectedVoice.voice,
           language: selectedVoice.language
         }, 'Thank you for your time. Have a great day!');
       } catch (error) {
-        console.error('AI response generation failed:', error);
+        console.error('AI response generation failed:', error.message);
         
         const voiceSettings = callData?.voiceSettings || {};
         const selectedVoice = getVoiceForPersonality(voiceSettings.personality || 'priyanshu');
@@ -355,13 +342,11 @@ exports.handleVoiceResponse = async (req, res) => {
     }
 
     twiml.hangup();
-
-    console.log('Sending TwiML:', twiml.toString());
     res.type('text/xml');
     res.send(twiml.toString());
 
   } catch (error) {
-    console.error('Voice response handling error:', error);
+    console.error('Voice response handler error:', error.message);
 
     const twiml = new twilio.twiml.VoiceResponse();
     twiml.say({
@@ -398,17 +383,10 @@ function generateProfessionalPrompt(callData) {
  */
 async function generateContextualResponse(userResponse, callData) {
   try {
-    // Environment-based URL selection
     const isProduction = process.env.NODE_ENV === 'production';
     const AI_BACKEND_URL = isProduction 
       ? process.env.AI_BACKEND_URL_PROD 
       : process.env.AI_BACKEND_URL_LOCAL;
-    
-    console.log('=== AI BACKEND REQUEST ===');
-    console.log('Environment:', process.env.NODE_ENV);
-    console.log('AI Backend URL:', AI_BACKEND_URL);
-    console.log('User Response:', userResponse);
-    console.log('Knowledge Base Items:', callData?.knowledgeBase?.length || 0);
     
     const axios = require('axios');
     
@@ -420,20 +398,12 @@ async function generateContextualResponse(userResponse, callData) {
       knowledge_base: callData?.knowledgeBase || []
     };
     
-    console.log('Sending request to Python AI backend...');
     const response = await axios.post(`${AI_BACKEND_URL}/voice/voice-response`, requestData, {
       timeout: 8000,
       headers: {
         'Content-Type': 'application/json'
       }
     });
-    
-    console.log('=== AI BACKEND RESPONSE ===');
-    console.log('Status:', response.status);
-    console.log('AI Response:', response.data.ai_response?.substring(0, 100) + '...');
-    console.log('Language:', response.data.detected_language);
-    console.log('Sentiment:', response.data.sentiment?.label);
-    console.log('Abusive detected:', response.data.abusive_detected);
     
     // Update call log if abusive content detected
     if (response.data.abusive_detected) {
@@ -443,7 +413,6 @@ async function generateContextualResponse(userResponse, callData) {
           { abusiveDetected: true },
           { new: true }
         );
-        console.log('Call log updated with abusive detection');
       } catch (updateError) {
         console.error('Failed to update call log for abusive content:', updateError.message);
       }
@@ -452,11 +421,7 @@ async function generateContextualResponse(userResponse, callData) {
     return response.data.ai_response;
     
   } catch (error) {
-    console.error('=== AI BACKEND ERROR ===');
-    console.error('Error message:', error.message);
-    console.error('Error code:', error.code);
-    console.error('Response status:', error.response?.status);
-    console.error('Response data:', error.response?.data);
+    console.error('AI backend request failed:', error.message);
     
     // Enhanced fallback with personality
     const personality = callData?.voiceSettings?.personality || 'priyanshu';
