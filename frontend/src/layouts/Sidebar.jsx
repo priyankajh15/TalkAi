@@ -249,8 +249,8 @@ const Sidebar = ({ isOpen, onClose, onHover }) => {
                         </div>
                     ))}
 
-                    {/* Spacer */}
-                    <div style={{ flex: 1 }} />
+                    {/* Spacer - Reduced */}
+                    <div style={{ height: '20px' }} />
 
                     {/* Bottom Divider */}
                     <div style={{

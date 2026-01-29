@@ -125,6 +125,14 @@ const KnowledgeBase = () => {
   return (
     <DashboardLayout>
       <div style={{ padding: 'clamp(16px, 4vw, 40px)' }}>
+        <style>
+          {`
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
+            }
+          `}
+        </style>
         {/* Header */}
         <div style={{ marginBottom: '40px' }}>
           <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
@@ -239,28 +247,48 @@ const KnowledgeBase = () => {
           {/* Storage Usage */}
           <div className="glass" style={{ padding: '20px' }}>
             <h3 style={{ fontSize: '16px', marginBottom: '15px' }}>Storage Usage</h3>
-            <div style={{ marginBottom: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ fontSize: '12px', color: '#999' }}>Used Storage</span>
-                <span style={{ fontSize: '12px', color: '#fff' }}>
-                  {storageUsed.toFixed(1)} MB / {storageLimit} MB
-                </span>
-              </div>
-              <div style={{
-                width: '100%',
-                height: '6px',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                borderRadius: '3px',
-                overflow: 'hidden'
-              }}>
+            {loading ? (
+              <div>
                 <div style={{
-                  width: `${Math.min(storagePercentage, 100)}%`,
-                  height: '100%',
-                  backgroundColor: storagePercentage > 80 ? '#f59e0b' : '#667eea',
-                  transition: 'width 0.3s ease'
+                  width: '100%',
+                  height: '12px',
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderRadius: '4px',
+                  marginBottom: '10px',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                }} />
+                <div style={{
+                  width: '60%',
+                  height: '6px',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderRadius: '3px',
+                  animation: 'pulse 1.5s ease-in-out infinite'
                 }} />
               </div>
-            </div>
+            ) : (
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: '#999' }}>Used Storage</span>
+                  <span style={{ fontSize: '12px', color: '#fff' }}>
+                    {storageUsed.toFixed(1)} MB / {storageLimit} MB
+                  </span>
+                </div>
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderRadius: '3px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${Math.min(storagePercentage, 100)}%`,
+                    height: '100%',
+                    backgroundColor: storagePercentage > 80 ? '#f59e0b' : '#667eea',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Uploaded Files */}
@@ -268,8 +296,52 @@ const KnowledgeBase = () => {
             <h3 style={{ fontSize: '16px', marginBottom: '15px' }}>Uploaded Files</h3>
             
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: '#999' }}>
-                <p style={{ fontSize: '14px' }}>Loading files...</p>
+              <div style={{ display: 'grid', gap: '15px' }}>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '15px',
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '4px',
+                        animation: 'pulse 1.5s ease-in-out infinite'
+                      }} />
+                      <div>
+                        <div style={{
+                          width: '120px',
+                          height: '16px',
+                          backgroundColor: 'rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          marginBottom: '4px',
+                          animation: 'pulse 1.5s ease-in-out infinite'
+                        }} />
+                        <div style={{
+                          width: '80px',
+                          height: '12px',
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                          borderRadius: '4px',
+                          animation: 'pulse 1.5s ease-in-out infinite'
+                        }} />
+                      </div>
+                    </div>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      borderRadius: '4px',
+                      animation: 'pulse 1.5s ease-in-out infinite'
+                    }} />
+                  </div>
+                ))}
               </div>
             ) : files.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px', color: '#999' }}>

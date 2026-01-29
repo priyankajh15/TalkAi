@@ -50,6 +50,12 @@ const CallLogs = () => {
   };
 
   const downloadRecording = async (callId) => {
+    const call = callLogs.find(c => c._id === callId);
+    if (!call?.recordingUrl) {
+      console.log('No recording available for this call');
+      return;
+    }
+    
     try {
       const response = await aiAPI.getRecording(callId);
       const recordingUrl = response.data.data.recording_url;
@@ -61,25 +67,20 @@ const CallLogs = () => {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error('Download failed:', error);
-      // Fallback to direct download
-      const link = document.createElement('a');
-      link.href = 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
-      link.download = `call-recording-${callId}.wav`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      console.log('Recording download failed - no recording available');
     }
   };
 
   const toggleAudio = (callId) => {
     const audioElement = document.getElementById(`audio-${callId}`);
-    if (audioElement) {
+    if (audioElement && audioElement.src) {
       if (playingAudio[callId]) {
         audioElement.pause();
         setPlayingAudio(prev => ({ ...prev, [callId]: false }));
       } else {
-        audioElement.play();
+        audioElement.play().catch(() => {
+          console.log('Audio playback failed - no recording available');
+        });
         setPlayingAudio(prev => ({ ...prev, [callId]: true }));
       }
     }
@@ -351,8 +352,11 @@ const CallLogs = () => {
                           id={`audio-${call._id}`}
                           style={{ display: 'none' }}
                           onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
+                          onError={() => console.log('Audio failed to load')}
                         >
-                          <source src={call.recordingUrl || "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"} type="audio/wav" />
+                          {call.recordingUrl && (
+                            <source src={call.recordingUrl} type="audio/wav" />
+                          )}
                         </audio>
 
                         <div style={{

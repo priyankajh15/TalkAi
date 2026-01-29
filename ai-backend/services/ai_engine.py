@@ -4,11 +4,15 @@ Dynamic responses with basic sentiment analysis using TextBlob
 """
 import os
 import logging
+import warnings
 from typing import Dict, List, Tuple, Optional
 from langdetect import detect, DetectorFactory
 from textblob import TextBlob
 import openai
 import json
+
+# Suppress TextBlob regex warnings
+warnings.filterwarnings("ignore", category=SyntaxWarning, module="textblob")
 
 # Set seed for consistent language detection
 DetectorFactory.seed = 0
