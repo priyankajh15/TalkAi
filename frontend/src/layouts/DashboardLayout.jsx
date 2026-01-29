@@ -26,17 +26,16 @@ const DashboardLayout = ({ children }) => {
   }, []);
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      minHeight: '100vh',
-      overflow: 'hidden'
+    <div style={{
+      display: 'flex',
+      minHeight: '100vh'
     }}>
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onHover={setDesktopSidebarExpanded}
       />
-      
+
       {/* Fixed Top Bar */}
       <div style={{
         position: 'fixed',
@@ -62,10 +61,10 @@ const DashboardLayout = ({ children }) => {
             onClick={() => setSidebarOpen(!sidebarOpen)}
           />
         )}
-        
+
         {/* Spacer for desktop */}
         {!isMobile && <div />}
-        
+
         {/* Profile Dropdown */}
         <div style={{ position: 'relative' }}>
           <button
@@ -96,7 +95,7 @@ const DashboardLayout = ({ children }) => {
               {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
             </div>
           </button>
-          
+
           {/* Dropdown Menu */}
           {showProfileDropdown && (
             <div style={{
@@ -121,9 +120,9 @@ const DashboardLayout = ({ children }) => {
                   {user?.email || 'user@example.com'}
                 </div>
               </div>
-              
+
               <div style={{ padding: '8px 0' }}>
-                <button 
+                <button
                   onClick={() => {
                     navigate('/voice-ai-assistants');
                     setShowProfileDropdown(false);
@@ -148,8 +147,8 @@ const DashboardLayout = ({ children }) => {
                   <FontAwesomeIcon icon={faUser} style={{ width: '16px' }} />
                   Profile
                 </button>
-                
-                <button 
+
+                <button
                   onClick={() => {
                     navigate('/settings');
                     setShowProfileDropdown(false);
@@ -174,8 +173,8 @@ const DashboardLayout = ({ children }) => {
                   <FontAwesomeIcon icon={faCog} style={{ width: '16px' }} />
                   Settings
                 </button>
-                
-                <button 
+
+                <button
                   onClick={() => {
                     navigate('/balance-plans');
                     setShowProfileDropdown(false);
@@ -200,10 +199,10 @@ const DashboardLayout = ({ children }) => {
                   <FontAwesomeIcon icon={faCreditCard} style={{ width: '16px' }} />
                   Billing
                 </button>
-                
+
                 <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
-                
-                <button 
+
+                <button
                   onClick={logout}
                   style={{
                     width: '100%',
@@ -230,7 +229,7 @@ const DashboardLayout = ({ children }) => {
           )}
         </div>
       </div>
-      
+
       <div style={{
         flex: 1,
         marginLeft: isMobile ? 0 : (desktopSidebarExpanded ? '280px' : '70px'),
@@ -238,7 +237,6 @@ const DashboardLayout = ({ children }) => {
         minHeight: '100vh',
         transition: 'margin-left 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)',
         width: isMobile ? '100%' : 'auto',
-        overflow: 'hidden',
         paddingTop: scrolled ? '50px' : '60px' // Account for fixed header
       }}>
         {/* Header with Hamburger - Mobile Only */}
@@ -259,17 +257,13 @@ const DashboardLayout = ({ children }) => {
           />
         </div>
 
-        <div style={{
-          height: '100vh',
-          overflowY: 'auto',
-          overflowX: 'hidden'
-        }}>
+        <div style={{ padding: '0 20px' }}>
           {children}
         </div>
-        
+
         {/* Click outside to close dropdown */}
         {showProfileDropdown && (
-          <div 
+          <div
             style={{
               position: 'fixed',
               top: 0,
