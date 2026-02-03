@@ -63,13 +63,6 @@ exports.makeVoiceCall = async (req, res) => {
       }));
       
       console.log(`Found ${knowledgeBase.length} usable knowledge base items for company`);
-      
-      // Debug: Log KB content details
-      knowledgeBase.forEach((kb, index) => {
-        console.log(`KB ${index + 1}: ${kb.title}`);
-        console.log(`Content length: ${kb.content?.length || 0} characters`);
-        console.log(`First 100 chars: ${kb.content?.substring(0, 100)}...`);
-      });
     } catch (kbError) {
       console.error('Failed to fetch knowledge base:', kbError.message);
     }
@@ -337,13 +330,6 @@ exports.handleVoiceResponse = async (req, res) => {
       // Generate AI response WITH FULL CONTEXT
       try {
         console.log('Generating AI response...');
-    
-    // Debug: Log KB data being sent to AI backend
-    console.log('KB data being sent to AI backend:');
-    console.log(`Total KB items: ${callData?.knowledgeBase?.length || 0}`);
-    callData?.knowledgeBase?.forEach((kb, index) => {
-      console.log(`KB ${index + 1}: ${kb.title} (${kb.content?.length || 0} chars)`);
-    });
         
         const enhancedCallData = {
           ...callData,
@@ -483,9 +469,6 @@ async function generateContextualResponse(userResponse, callData) {
       call_sid: callData?.callSid,
       knowledge_base: callData?.knowledgeBase || []
     };
-    
-    // Debug: Log payload size
-    console.log(`AI backend payload size: ${JSON.stringify(requestData).length} characters`);
     
     const response = await axios.post(`${AI_BACKEND_URL}/voice/voice-response`, requestData, {
       timeout: 8000,
