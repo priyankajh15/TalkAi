@@ -16,4 +16,7 @@ router.post('/handle-response', express.urlencoded({ extended: true }), voiceCon
 // Handle callback info collection (no auth - webhook)
 router.post('/collect-callback', express.urlencoded({ extended: true }), voiceController.collectCallback);
 
+// NEW: Handle call status updates (no auth - webhook)
+router.post('/handle-call/status', express.urlencoded({ extended: true }), voiceController.handleCallStatus);
+
 module.exports = router;

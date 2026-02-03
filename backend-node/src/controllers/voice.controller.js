@@ -2,6 +2,7 @@ const twilio = require('twilio');
 const logger = require('../config/logger');
 const CallLog = require('../models/CallLog.model');
 const KnowledgeBase = require('../models/KnowledgeBase.model');
+const callDataService = require('../services/callData.service'); //  ADD THIS LINE
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -66,10 +67,11 @@ exports.makeVoiceCall = async (req, res) => {
       console.error('Failed to fetch knowledge base:', kbError.message);
     }
 
-    // Encode call data in webhook URL
-    const callDataEncoded = Buffer.from(JSON.stringify({
+    //  Prepare complete call data
+    const callData = {
       information: callInformation,
       companyName: companyName || 'Your Company',
+      companyId: req.user?.companyId,
       receiverName: req.body.receiverName,
       escalationNumber: escalationNumber || req.body.escalationNumber,
       knowledgeBase: knowledgeBase, // Include PDF knowledge
@@ -79,34 +81,37 @@ exports.makeVoiceCall = async (req, res) => {
         model: 'gpt-4-mini',
         stt: 'azure'
       }
-    })).toString('base64');
+    };
+
+    // Encode call data in webhook URL
+    const callDataEncoded = Buffer.from(JSON.stringify(callData)).toString('base64');
 
     // Initiate the call with data in URL
     const call = await client.calls.create({
       url: `${webhookUrl}?data=${encodeURIComponent(callDataEncoded)}`,
       to: formattedNumber,
       from: twilioNumber,
-      method: 'POST'
+      method: 'POST',
+      statusCallback: `${webhookUrl}/status`, // Add status callback
+      statusCallbackEvent: ['completed', 'failed', 'no-answer']
     });
     
-    // Security: Log minimal data only
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Call data stored for CallSid:', call.sid);
-    }
-
+    //  STORE CALL DATA IN MEMORY (Critical fix!)
+    callDataService.storeCallData(call.sid, callData);
+    
     console.log('Voice call initiated:', call.sid);
 
     // Create call log entry
     try {
       const personality = req.body.voiceSettings?.personality || 'priyanshu';
-      const botName = personality.charAt(0).toUpperCase() + personality.slice(1); // Capitalize first letter
+      const botName = personality.charAt(0).toUpperCase() + personality.slice(1);
       
       await CallLog.create({
         companyId: req.user?.companyId || '507f1f77bcf86cd799439011',
         callId: call.sid,
         callerNumber: twilioNumber,
-        receiverNumber: formattedNumber, // Add target number
-        botName: botName, // Save personality name as bot name
+        receiverNumber: formattedNumber,
+        botName: botName,
         startTime: new Date(),
         handledBy: 'AI'
       });
@@ -126,7 +131,7 @@ exports.makeVoiceCall = async (req, res) => {
 
   } catch (error) {
     console.error('Voice call error:', error.message);
-    console.error('Error stack:', error.stack);
+    console.error('Stack:', error.stack);
 
     return res.status(500).json({
       success: false,
@@ -143,39 +148,46 @@ exports.handleVoiceCall = async (req, res) => {
   try {
     const { CallSid, From, To } = req.body;
     
-    // Enhanced logging for phone call debugging
     console.log('=== PHONE CALL WEBHOOK ===');
     console.log('CallSid:', CallSid);
     console.log('From:', From);
     console.log('To:', To);
-    console.log('Environment:', process.env.NODE_ENV);
     
-    // Get call data from URL parameter
-    let callData = null;
-    try {
-      const dataParam = req.query.data;
-      if (dataParam) {
-        const decodedData = Buffer.from(decodeURIComponent(dataParam), 'base64').toString('utf8');
-        callData = JSON.parse(decodedData);
-        console.log('Call data retrieved from URL:', !!callData);
+    // GET CALL DATA FROM MEMORY (Primary source)
+    let callData = callDataService.getCallData(CallSid);
+    
+    // Fallback: Try to get from URL if not in memory
+    if (!callData) {
+      console.log('Call data not in memory, trying URL parameter...');
+      try {
+        const dataParam = req.query.data;
+        if (dataParam) {
+          const decodedData = Buffer.from(decodeURIComponent(dataParam), 'base64').toString('utf8');
+          callData = JSON.parse(decodedData);
+          // Store it now for future responses
+          callDataService.storeCallData(CallSid, callData);
+          console.log('Call data retrieved from URL and stored in memory');
+        }
+      } catch (error) {
+        console.error('Failed to decode call data from URL:', error.message);
       }
-    } catch (error) {
-      console.error('Failed to decode call data from URL:', error.message);
     }
+    
     console.log('Call data found:', !!callData);
+    console.log('Knowledge base items:', callData?.knowledgeBase?.length || 0);
     
     let message = 'Hello! This is a test message from TalkAI. Thank you for calling.';
     
     if (callData && callData.information) {
       message = generateProfessionalPrompt(callData);
-      console.log('Using custom message for phone call');
+      console.log('Using custom message with KB context');
     } else {
       console.log('No call data found, using default message');
     }
     
     const twiml = new twilio.twiml.VoiceResponse();
     
-    // Use default voice settings if no call data
+    // Use voice settings from call data
     const voiceSettings = callData?.voiceSettings || { personality: 'priyanshu' };
     const selectedVoice = getVoiceForPersonality(voiceSettings.personality);
     
@@ -208,7 +220,7 @@ exports.handleVoiceCall = async (req, res) => {
     
     twiml.hangup();
     
-    console.log('TwiML generated successfully for phone call');
+    console.log('TwiML generated successfully');
     res.type('text/xml');
     res.send(twiml.toString());
     
@@ -233,18 +245,39 @@ exports.handleVoiceCall = async (req, res) => {
 exports.handleVoiceResponse = async (req, res) => {
   try {
     const { CallSid, SpeechResult } = req.body;
-    const callData = null; // No call data available in response handler
     const userResponse = SpeechResult || '';
+
+    console.log('=== HANDLING USER RESPONSE ===');
+    console.log('CallSid:', CallSid);
+    console.log('User said:', userResponse);
+
+    // GET CALL DATA FROM MEMORY (Critical fix - was null before!)
+    const callData = callDataService.getCallData(CallSid);
+    
+    if (!callData) {
+      console.error(`No call data found for ${CallSid}`);
+      // Fallback response
+      const twiml = new twilio.twiml.VoiceResponse();
+      twiml.say('Thank you for your response. Our team will be happy to assist you further. Have a great day!');
+      twiml.hangup();
+      res.type('text/xml');
+      return res.send(twiml.toString());
+    }
+
+    console.log(`Call data retrieved successfully`);
+    console.log(`KB items available: ${callData.knowledgeBase?.length || 0}`);
+    console.log(`Conversation count: ${callDataService.getConversationCount(CallSid)}`);
 
     const twiml = new twilio.twiml.VoiceResponse();
 
     // Check for escalation keywords first
-    if (userResponse.toLowerCase().includes('human') || 
-        userResponse.toLowerCase().includes('representative') || 
-        userResponse.toLowerCase().includes('agent') ||
-        userResponse.toLowerCase().includes('team') ||
-        userResponse.toLowerCase().includes('transfer') ||
-        userResponse.toLowerCase().includes('connect me')) {
+    const escalationKeywords = ['human', 'representative', 'agent', 'team', 'transfer', 'connect me', 'talk to someone', 'speak to someone'];
+    const wantsEscalation = escalationKeywords.some(keyword => 
+      userResponse.toLowerCase().includes(keyword)
+    );
+    
+    if (wantsEscalation) {
+      console.log('User requested escalation');
       
       const voiceSettings = callData?.voiceSettings || {};
       const selectedVoice = getVoiceForPersonality(voiceSettings.personality || 'priyanshu');
@@ -294,14 +327,26 @@ exports.handleVoiceResponse = async (req, res) => {
         }, 'Thank you. Our team will contact you soon. Have a great day!');
       }
     } else {
-      // Generate AI response
+      // Generate AI response WITH FULL CONTEXT
       try {
+        console.log('Generating AI response...');
+        
         const enhancedCallData = {
           ...callData,
           callSid: CallSid
         };
         
         const aiResponse = await generateContextualResponse(userResponse, enhancedCallData);
+      
+        console.log('AI response generated:', aiResponse.substring(0, 100) + '...');
+        
+        // Store conversation exchange in memory
+        callDataService.addConversationExchange(
+          CallSid, 
+          userResponse, 
+          aiResponse,
+          callData.voiceSettings?.language || 'auto'
+        );
         
         const voiceSettings = callData?.voiceSettings || {};
         const selectedVoice = getVoiceForPersonality(voiceSettings.personality || 'priyanshu');
@@ -311,23 +356,50 @@ exports.handleVoiceResponse = async (req, res) => {
           language: selectedVoice.language
         }, aiResponse);
 
-        const gather = twiml.gather({
-          input: 'speech',
-          timeout: 4,
-          speechTimeout: 2,
-          action: '/api/voice/handle-response',
-          method: 'POST'
-        });
+        // Check conversation count for natural escalation
+        const conversationCount = callDataService.getConversationCount(CallSid);
+        console.log(`Conversation exchanges: ${conversationCount}`);
+        
+        if (conversationCount >= 5) {
+          // After 5 exchanges, offer escalation
+          console.log('Suggesting escalation after 5 exchanges');
+          twiml.say({
+            voice: selectedVoice.voice,
+            language: selectedVoice.language
+          }, 'Would you like me to connect you with our technical team for more detailed assistance?');
+          
+          const gather = twiml.gather({
+            input: 'speech',
+            timeout: 4,
+            speechTimeout: 2,
+            action: '/api/voice/handle-response',
+            method: 'POST'
+          });
+          
+          gather.say({
+            voice: selectedVoice.voice,
+            language: selectedVoice.language
+          }, 'Please say yes if you would like to speak with someone, or no to continue with me.');
+        } else {
+          // Continue conversation
+          const gather = twiml.gather({
+            input: 'speech',
+            timeout: 4,
+            speechTimeout: 2,
+            action: '/api/voice/handle-response',
+            method: 'POST'
+          });
 
-        gather.say({
-          voice: selectedVoice.voice,
-          language: selectedVoice.language
-        }, 'Is there anything else you\'d like to know?');
+          gather.say({
+            voice: selectedVoice.voice,
+            language: selectedVoice.language
+          }, 'Is there anything else you\'d like to know?');
 
-        twiml.say({
-          voice: selectedVoice.voice,
-          language: selectedVoice.language
-        }, 'Thank you for your time. Have a great day!');
+          twiml.say({
+            voice: selectedVoice.voice,
+            language: selectedVoice.language
+          }, 'Thank you for your time. Have a great day!');
+        }
       } catch (error) {
         console.error('AI response generation failed:', error.message);
         
@@ -507,6 +579,46 @@ exports.collectCallback = async (req, res) => {
     
     res.type('text/xml');
     res.send(twiml.toString());
+  }
+};
+
+/**
+ * Handle call status updates from Twilio
+ */
+exports.handleCallStatus = async (req, res) => {
+  try {
+    const { CallSid, CallStatus, CallDuration } = req.body;
+    
+    console.log(`Call ${CallSid} status: ${CallStatus}`);
+    
+    if (CallStatus === 'completed' || CallStatus === 'failed' || CallStatus === 'no-answer') {
+      // Update call log with final status
+      try {
+        await CallLog.findOneAndUpdate(
+          { callId: CallSid },
+          { 
+            endTime: new Date(),
+            duration: CallDuration ? parseInt(CallDuration) : null,
+            status: CallStatus
+          }
+        );
+        console.log(`Updated call log for ${CallSid}`);
+      } catch (logError) {
+        console.error('Failed to update call log:', logError.message);
+      }
+      
+      // Clean up call data from memory
+      callDataService.removeCallData(CallSid);
+      
+      // Log stats
+      const stats = callDataService.getStats();
+      console.log(`Active calls: ${stats.activeCalls}`);
+    }
+    
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Call status handler error:', error);
+    res.sendStatus(500);
   }
 };
 
