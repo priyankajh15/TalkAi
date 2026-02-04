@@ -19,6 +19,75 @@ DetectorFactory.seed = 0
 
 logger = logging.getLogger(__name__)
 
+class ConversationStateManager:
+    """Manages conversation stages and flow for natural dialogue"""
+    
+    STAGES = {
+        'greeting': {
+            'next': 'introduction',
+            'max_turns': 1
+        },
+        'introduction': {
+            'next': 'needs_assessment',
+            'max_turns': 2
+        },
+        'needs_assessment': {
+            'next': 'solution_pitch',
+            'max_turns': 3
+        },
+        'solution_pitch': {
+            'next': 'objection_handling',
+            'max_turns': 4
+        },
+        'objection_handling': {
+            'next': 'closing',
+            'max_turns': 3
+        },
+        'closing': {
+            'next': 'escalation',
+            'max_turns': 2
+        },
+        'escalation': {
+            'next': None,
+            'max_turns': 1
+        }
+    }
+    
+    def __init__(self):
+        self.call_stages = {}  # {call_sid: {stage, turn_count}}
+    
+    def get_current_stage(self, call_sid: str) -> str:
+        """Get current conversation stage"""
+        if call_sid not in self.call_stages:
+            self.call_stages[call_sid] = {'stage': 'greeting', 'turn_count': 0}
+        return self.call_stages[call_sid]['stage']
+    
+    def advance_stage(self, call_sid: str, force_stage: str = None):
+        """Move to next conversation stage"""
+        if call_sid not in self.call_stages:
+            self.call_stages[call_sid] = {'stage': 'greeting', 'turn_count': 0}
+        
+        current = self.call_stages[call_sid]
+        current['turn_count'] += 1
+        
+        stage_config = self.STAGES[current['stage']]
+        
+        # Force stage change if specified
+        if force_stage and force_stage in self.STAGES:
+            current['stage'] = force_stage
+            current['turn_count'] = 0
+        # Auto-advance if max turns reached
+        elif current['turn_count'] >= stage_config['max_turns']:
+            next_stage = stage_config['next']
+            if next_stage:
+                current['stage'] = next_stage
+                current['turn_count'] = 0
+    
+    def should_escalate(self, call_sid: str) -> bool:
+        """Check if conversation should escalate to human"""
+        stage = self.get_current_stage(call_sid)
+        return stage == 'escalation'
+
 class ConversationMemory:
     """Manages conversation context and memory"""
     def __init__(self):
@@ -46,7 +115,8 @@ class LightweightLanguageDetector:
     
     @staticmethod
     def detect_language(text: str, user_preference: str = 'auto') -> Tuple[str, float]:
-        """Enhanced language detection with better Hindi support"""
+        """Enhanced language detection with better Hindi and Hinglish support"""
+        # Respect explicit language preferences
         if user_preference in ['hi-IN', 'hindi']:
             return 'hindi', 1.0
         if user_preference in ['en-IN', 'english']:
@@ -55,22 +125,50 @@ class LightweightLanguageDetector:
         try:
             text_lower = text.lower()
             
-            # Enhanced Hindi word detection
-            hindi_words = ['hai', 'kya', 'mein', 'main', 'aap', 'hum', 'baare', 'ke', 'se', 
-                          'acha', 'accha', 'nahi', 'haan', 'paisa', 'rupaye', 'samay', 
-                          'business', 'kaam', 'kaise', 'kahan', 'kab', 'kyun', 'kyu',
-                          'batao', 'bolo', 'samjhao', 'chahiye', 'chahte', 'pasand',
-                          'theek', 'sahi', 'galat', 'problem', 'pareshani', 'madad',
-                          'help', 'service', 'company', 'team', 'price', 'cost']
+            # EXPANDED Hindi word list with common phrases
+            hindi_words = [
+                # Common verbs
+                'hai', 'hain', 'tha', 'the', 'hoga', 'hogi', 'karna', 'karne', 'kiya', 'karo',
+                # Question words
+                'kya', 'kaise', 'kahan', 'kab', 'kyun', 'kyu', 'kaun', 'kitna', 'kitne', 'kaunsa',
+                # Pronouns
+                'mein', 'main', 'aap', 'hum', 'tum', 'yeh', 'woh', 'ye', 'wo', 'iska', 'uska',
+                # Common phrases
+                'baare', 'ke', 'se', 'meh', 'ko', 'ka', 'ki', 'ne', 'par', 'tak',
+                # Adjectives
+                'acha', 'accha', 'achha', 'bura', 'theek', 'thik', 'sahi', 'galat', 'badiya',
+                # Responses
+                'nahi', 'nahin', 'haan', 'ji', 'bilkul', 'zaroor', 'shayad', 'pakka',
+                # Business terms
+                'paisa', 'paise', 'rupaye', 'rupee', 'samay', 'waqt', 'business', 
+                'kaam', 'service', 'madad', 'help', 'jarurat', 'chahiye',
+                # Action words
+                'batao', 'bolo', 'samjhao', 'dikhao', 'chahiye', 'chahte', 'pasand',
+                'problem', 'pareshani', 'dikkat', 'mushkil', 'suniye', 'dekhiye',
+                # Common fillers
+                'toh', 'phir', 'aur', 'ya', 'lekin', 'par', 'matlab', 'agar', 'jab'
+            ]
             
-            english_words = ['yes', 'no', 'good', 'bad', 'service', 'cloud', 'price', 
-                           'cost', 'business', 'company', 'team', 'help', 'support',
-                           'what', 'how', 'when', 'where', 'why', 'can', 'will',
-                           'would', 'should', 'could', 'tell', 'show', 'explain']
+            english_words = [
+                'yes', 'no', 'good', 'bad', 'okay', 'ok', 'fine', 'great', 'nice', 'sure',
+                'service', 'cloud', 'price', 'cost', 'business', 'company', 'team',
+                'help', 'support', 'please', 'thank', 'thanks', 'sorry', 'welcome',
+                'what', 'how', 'when', 'where', 'why', 'who', 'which', 'whose',
+                'can', 'will', 'would', 'should', 'could', 'may', 'might', 'must',
+                'tell', 'show', 'explain', 'need', 'want', 'like', 'have', 'get',
+                'know', 'think', 'see', 'understand', 'interested', 'looking'
+            ]
             
-            # Count matches
-            hindi_count = sum(1 for word in hindi_words if word in text_lower)
-            english_count = sum(1 for word in english_words if word in text_lower)
+            # Count word matches
+            words_in_text = text_lower.split()
+            hindi_matches = sum(1 for word in words_in_text if word in hindi_words)
+            english_matches = sum(1 for word in words_in_text if word in english_words)
+            
+            total_words = len(words_in_text)
+            hindi_ratio = hindi_matches / total_words if total_words > 0 else 0
+            english_ratio = english_matches / total_words if total_words > 0 else 0
+            
+            logger.info(f"Language detection - Hindi: {hindi_matches}/{total_words} ({hindi_ratio:.2f}), English: {english_matches}/{total_words} ({english_ratio:.2f})")
             
             # Use langdetect as secondary check
             detected_lang = 'en'
@@ -79,17 +177,24 @@ class LightweightLanguageDetector:
             except:
                 pass
             
-            # Decision logic
-            if hindi_count >= 2:  # Strong Hindi indicators
+            # Enhanced decision logic with LOWER thresholds for Hinglish
+            if hindi_ratio >= 0.25:  # At least 25% Hindi words
+                if english_ratio >= 0.25:  # Also has English - HINGLISH
+                    logger.info("Detected language: HINGLISH")
+                    return 'hinglish', 0.85
+                logger.info("Detected language: HINDI")
                 return 'hindi', 0.9
-            elif hindi_count > 0 and english_count > 0:  # Mixed (Hinglish)
-                return 'hinglish', 0.8
             elif detected_lang == 'hi':
+                logger.info("Detected language: HINDI (via langdetect)")
                 return 'hindi', 0.8
-            elif english_count >= 2:
+            elif english_ratio >= 0.3:
+                logger.info("Detected language: ENGLISH")
                 return 'english', 0.9
             else:
-                return 'english', 0.7  # Default to English
+                # Default based on langdetect
+                result_lang = 'english' if detected_lang == 'en' else 'hinglish'
+                logger.info(f"Detected language: {result_lang.upper()} (default)")
+                return result_lang, 0.7
                 
         except Exception as e:
             logger.warning(f"Language detection failed: {e}")
@@ -196,11 +301,15 @@ class LightweightResponseGenerator:
     
     def __init__(self):
         # Initialize OpenAI client only if API key is available
+        self.openai_client = None
         try:
-            if os.getenv('OPENAI_API_KEY') and os.getenv('OPENAI_API_KEY') != 'your_openai_api_key_here':
-                self.openai_client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            api_key = os.getenv('OPENAI_API_KEY')
+            if api_key and api_key != 'your_openai_api_key_here':
+                # Simple initialization without extra parameters
+                import openai as openai_module
+                self.openai_client = openai_module.OpenAI(api_key=api_key)
+                logger.info("OpenAI client initialized successfully")
             else:
-                self.openai_client = None
                 logger.info("OpenAI API key not configured, using template responses")
         except Exception as e:
             logger.warning(f"OpenAI client init failed: {e}")
@@ -212,9 +321,18 @@ class LightweightResponseGenerator:
         self.personality_engine = PersonalityEngine()
     
     async def generate_response(self, user_message: str, call_data: Dict, 
-                              voice_settings: Dict, call_sid: str = None, knowledge_base: List = None) -> Dict:
-        """Generate dynamic AI response with full context"""
+                              voice_settings: Dict, call_sid: str = None, 
+                              knowledge_base: List = None) -> Dict:
+        """Generate dynamic AI response with stage-based conversation flow"""
         try:
+            # Initialize state manager if not exists
+            if not hasattr(self, 'state_manager'):
+                self.state_manager = ConversationStateManager()
+            
+            # Get current conversation stage
+            current_stage = self.state_manager.get_current_stage(call_sid) if call_sid else 'greeting'
+            logger.info(f"Current conversation stage: {current_stage}")
+            
             # Language detection
             language, lang_confidence = self.language_detector.detect_language(
                 user_message, voice_settings.get('language', 'auto')
@@ -226,14 +344,67 @@ class LightweightResponseGenerator:
             # Abusive content detection
             abuse_detection = self.sentiment_analyzer.detect_abusive_content(user_message)
             
+            # Handle abusive content immediately
+            if abuse_detection['is_abusive']:
+                logger.warning(f"Abusive content detected in call {call_sid}")
+                response_text = self._get_abusive_response(
+                    voice_settings.get('personality', 'priyanshu'), 
+                    language
+                )
+                return {
+                    'ai_response': response_text,
+                    'detected_language': language,
+                    'language_confidence': lang_confidence,
+                    'sentiment': sentiment,
+                    'personality': voice_settings.get('personality', 'priyanshu'),
+                    'context_used': False,
+                    'conversation_stage': current_stage,
+                    'abusive_detected': True
+                }
+            
             # Get conversation context
             context = self.memory.get_context(call_sid) if call_sid else []
+            logger.info(f"Conversation context: {len(context)} previous exchanges")
             
-            # Generate response using OpenAI or templates
+            # Classify intent
+            intent = self._classify_intent(user_message)
+            logger.info(f"Detected intent: {intent}")
+            
+            # Search knowledge base
+            relevant_kb_info = self._search_knowledge_base(user_message, knowledge_base or [])
+            logger.info(f"KB search returned {len(relevant_kb_info)} chars of content")
+            
+            # Generate response
             personality = voice_settings.get('personality', 'priyanshu')
-            response_text = await self._generate_llm_response(
-                user_message, personality, language, sentiment, context, call_data, knowledge_base or [], abuse_detection
+            company_name = call_data.get('companyName', 'our company')
+            
+            # Check if user explicitly requests human agent
+            escalation_keywords = ['human', 'agent', 'representative', 'person', 'insaan', 'vyakti', 'team member', 'specialist']
+            user_wants_escalation = any(keyword in user_message.lower() for keyword in escalation_keywords)
+            
+            if user_wants_escalation:
+                logger.info("User requested escalation explicitly")
+                if call_sid:
+                    self.state_manager.advance_stage(call_sid, force_stage='escalation')
+                current_stage = 'escalation'
+            
+            # Generate response based on stage
+            response_text = self._get_stage_based_response(
+                stage=current_stage,
+                intent=intent,
+                language=language,
+                personality=personality,
+                kb_info=relevant_kb_info,
+                company_name=company_name,
+                sentiment=sentiment,
+                user_message=user_message
             )
+            
+            logger.info(f"Generated response: {response_text[:100]}...")
+            
+            # Advance conversation stage naturally (if not escalating)
+            if call_sid and not user_wants_escalation:
+                self.state_manager.advance_stage(call_sid)
             
             # Store in memory
             if call_sid:
@@ -246,12 +417,18 @@ class LightweightResponseGenerator:
                 'sentiment': sentiment,
                 'personality': personality,
                 'context_used': len(context) > 0,
-                'abusive_detected': abuse_detection['is_abusive']
+                'conversation_stage': self.state_manager.get_current_stage(call_sid) if call_sid else current_stage,
+                'should_escalate': self.state_manager.should_escalate(call_sid) if call_sid else False,
+                'abusive_detected': False
             }
             
         except Exception as e:
             logger.error(f"Response generation failed: {e}")
-            return self._fallback_response(voice_settings.get('personality', 'priyanshu'), language)
+            logger.error(f"Stack trace: ", exc_info=True)
+            return self._fallback_response(
+                voice_settings.get('personality', 'priyanshu'), 
+                language if 'language' in locals() else 'english'
+            )
     
     async def _generate_llm_response(self, user_message: str, personality: str, 
                                    language: str, sentiment: Dict, context: List, 
@@ -314,6 +491,118 @@ Respond as {personality} in {language}. Focus on:
             logger.error(f"OpenAI generation failed: {e}")
             return self._get_enhanced_template_response(user_message, personality, language, call_data, sentiment, context, knowledge_base)
     
+    def _get_stage_based_response(self, stage: str, intent: str, language: str, 
+                                  personality: str, kb_info: str, 
+                                  company_name: str, sentiment: Dict, 
+                                  user_message: str) -> str:
+        """Generate response based on conversation stage"""
+        
+        logger.info(f"Generating stage-based response: stage={stage}, intent={intent}, language={language}")
+        
+        # Stage-specific response templates
+        if stage == 'greeting':
+            if language == 'hindi':
+                return f"Namaste! Main {personality} bol raha hun {company_name} se. Aap kaise hain?"
+            elif language == 'hinglish':
+                return f"Hello! Main {personality} hun {company_name} se. Aap kaise hain? How can I help you?"
+            else:
+                return f"Hello! I'm {personality} from {company_name}. How are you doing today?"
+        
+        elif stage == 'introduction':
+            if kb_info:
+                if language == 'hindi':
+                    return f"Dhanyawad! Hamare paas ye services hain: {kb_info[:150]}. Kya aap is baare mein aur jaanna chahenge?"
+                elif language == 'hinglish':
+                    return f"Thank you! Hamare paas ye hai: {kb_info[:150]}. Kya aap interested hain to know more?"
+                else:
+                    return f"Great! We specialize in: {kb_info[:150]}. Would you like to hear more about this?"
+            else:
+                if language == 'hindi':
+                    return f"{company_name} comprehensive business solutions provide karta hai. Aapko kis service ke baare mein jaanna hai?"
+                else:
+                    return f"{company_name} provides comprehensive business solutions. What specific service interests you?"
+        
+        elif stage == 'needs_assessment':
+            # Ask probing questions based on intent
+            if intent == 'pricing':
+                if language == 'hindi':
+                    return "Pricing aapke requirements par depend karti hai. Aap kitne users ke liye solution chahte hain?"
+                elif language == 'hinglish':
+                    return "Pricing depends on your requirements. Kitne users ke liye chahiye?"
+                else:
+                    return "Our pricing depends on your requirements. How many users would you need this for?"
+            elif intent == 'services':
+                if language == 'hindi':
+                    return f"Bilkul! Hamare paas multiple services hain. {kb_info[:200] if kb_info else 'Cloud, hosting, aur support services'}. Aapki company ki specific need kya hai?"
+                elif language == 'hinglish':
+                    return f"Absolutely! We offer {kb_info[:200] if kb_info else 'cloud, hosting, support services'}. Aapki specific need kya hai?"
+                else:
+                    return f"Absolutely! We offer {kb_info[:200] if kb_info else 'cloud, hosting, and support services'}. What's your company's specific need?"
+        
+        elif stage == 'solution_pitch':
+            if kb_info:
+                if language == 'hindi':
+                    return f"Perfect! Hamare solution mein ye features hain: {kb_info[:250]}. Ye aapki needs match kar raha hai. Kya aap demo dekhna chahenge?"
+                elif language == 'hinglish':
+                    return f"Perfect! Our solution includes: {kb_info[:250]}. This matches your needs. Demo dekhna chahenge?"
+                else:
+                    return f"Perfect! Our solution includes: {kb_info[:250]}. This aligns well with your needs. Would you like to see a demo?"
+            else:
+                if language == 'hindi':
+                    return f"Hamare solution se aap 30-40% cost save kar sakte hain aur 24/7 support milega. Kya ye interesting lagta hai?"
+                elif language == 'hinglish':
+                    return "Our solution saves 30-40% cost with 24/7 support. Interesting lagta hai?"
+                else:
+                    return "Our solution can save you 30-40% on costs with 24/7 support included. Does this sound interesting?"
+        
+        elif stage == 'objection_handling':
+            if sentiment['label'] == 'negative':
+                if language == 'hindi':
+                    return "Main samajh sakta hun aapki concern. Kya main aapko specific details share kar sakta hun jo aapki pareshani solve karenge?"
+                elif language == 'hinglish':
+                    return "I understand your concern. Kya main specific details share kar sakta hun?"
+                else:
+                    return "I understand your concern. Can I share specific details that address your worry?"
+            else:
+                if language == 'hindi':
+                    return "Kya aapko koi aur question hai? Ya koi specific concern jo discuss karna chahenge?"
+                elif language == 'hinglish':
+                    return "Any other questions? Koi specific concern hai?"
+                else:
+                    return "Do you have any other questions or specific concerns you'd like to discuss?"
+        
+        elif stage == 'closing':
+            if 'yes' in user_message.lower() or 'haan' in user_message.lower() or 'interested' in user_message.lower():
+                if language == 'hindi':
+                    return "Bahut accha! Main aapko hamare technical specialist se connect kar raha hun jo aapko detailed discussion provide karenge. Ek minute rukiye."
+                elif language == 'hinglish':
+                    return "Excellent! Let me connect you with our specialist. Ek minute please."
+                else:
+                    return "Excellent! Let me connect you with our technical specialist who can provide a detailed discussion. Please hold for a moment."
+            else:
+                if language == 'hindi':
+                    return "Koi baat nahi. Kya aap chahenge ki main apni team se aapko call back karwa dun later?"
+                elif language == 'hinglish':
+                    return "No problem. Kya aap callback chahenge?"
+                else:
+                    return "No problem. Would you like our team to call you back later?"
+        
+        elif stage == 'escalation':
+            if language == 'hindi':
+                return "Main aapko abhi hamare senior consultant se connect kar raha hun. Dhanyawad aapki patience ke liye!"
+            elif language == 'hinglish':
+                return "Connecting you with our consultant now. Thank you for patience!"
+            else:
+                return "I'm connecting you with our senior consultant now. Thank you for your patience!"
+        
+        # Fallback
+        if language == 'hindi':
+            return "Main samajh gaya. Aur kya jaanna chahenge aap?"
+        elif language == 'hinglish':
+            return "I understand. Aur kya details chahiye?"
+        else:
+            return "I understand. Can you tell me more about what you're looking for?"
+
     def _get_enhanced_template_response(self, user_message: str, personality: str, 
                                       language: str, call_data: Dict, sentiment: Dict, context: List, knowledge_base: List = None, abuse_detection: Dict = None) -> str:
         """Enhanced template responses with sentiment, context awareness AND knowledge base integration"""
