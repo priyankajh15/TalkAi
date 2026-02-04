@@ -12,7 +12,7 @@ class VoiceRequest(BaseModel):
     call_data: Optional[Dict[str, Any]] = None
     voice_settings: Optional[Dict[str, Any]] = None
     call_sid: Optional[str] = None
-    knowledge_base: Optional[List[Dict[str, str]]] = []
+    knowledge_base: Optional[List[Dict[str, Any]]] = []
 
 class VoiceResponse(BaseModel):
     ai_response: str
@@ -21,6 +21,9 @@ class VoiceResponse(BaseModel):
     sentiment: Dict[str, Any]
     personality: str
     context_used: bool
+    conversation_stage: Optional[str] = None
+    should_escalate: Optional[bool] = False
+    abusive_detected: Optional[bool] = False
 
 @router.post("/voice-response", response_model=VoiceResponse)
 async def generate_voice_response(request: VoiceRequest):
@@ -44,7 +47,10 @@ async def generate_voice_response(request: VoiceRequest):
             language_confidence=result['language_confidence'],
             sentiment=result['sentiment'],
             personality=result['personality'],
-            context_used=result['context_used']
+            context_used=result['context_used'],
+            conversation_stage=result.get('conversation_stage'),
+            should_escalate=result.get('should_escalate', False),
+            abusive_detected=result.get('abusive_detected', False)
         )
         
     except Exception as e:
