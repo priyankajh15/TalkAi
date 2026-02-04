@@ -395,7 +395,7 @@ class LightweightResponseGenerator:
                 'tell', 'explain', 'batao', 'samjhao', 'about', 'baare'
             ])
 
-            if is_question and relevant_kb_info and current_stage in ['needs_assessment', 'solution_pitch', 'objection_handling']:
+            if is_question and relevant_kb_info:
                 # Generate answer from KB
                 logger.info("User asked question - generating KB-based answer")
                 response_text = self._generate_kb_answer(
