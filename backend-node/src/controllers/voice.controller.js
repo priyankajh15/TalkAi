@@ -47,7 +47,7 @@ exports.makeVoiceCall = async (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
     const webhookUrl = `${isProduction ? process.env.BASE_URL_PROD : process.env.BASE_URL_LOCAL}/api/voice/handle-call`;
     
-    // Get company's knowledge base data (only successfully processed PDFs)
+    // Get company's knowledge base data with smart chunking
     let knowledgeBase = [];
     try {
       const companyKnowledge = await KnowledgeBase.find({
@@ -56,13 +56,55 @@ exports.makeVoiceCall = async (req, res) => {
         content: { $not: /Text extraction failed/ } // Exclude failed extractions
       }).select('title content category');
       
-      knowledgeBase = companyKnowledge.map(kb => ({
-        title: kb.title,
-        content: kb.content,
-        category: kb.category
-      }));
+      //  NEW: Smart chunking for long documents
+      knowledgeBase = companyKnowledge.flatMap(kb => {
+        const content = kb.content;
+        const chunkSize = 1500; // ~300 words per chunk
+        const chunks = [];
+        
+        // Split long documents into searchable chunks
+        if (content.length > chunkSize) {
+          // Split by paragraphs first
+          const paragraphs = content.split(/\n\n+/);
+          let currentChunk = '';
+          
+          for (const para of paragraphs) {
+            if (currentChunk.length + para.length > chunkSize && currentChunk) {
+              chunks.push({
+                title: kb.title,
+                content: currentChunk.trim(),
+                category: kb.category,
+                chunk_id: chunks.length + 1
+              });
+              currentChunk = para;
+            } else {
+              currentChunk += '\n\n' + para;
+            }
+          }
+          
+          // Add remaining content
+          if (currentChunk) {
+            chunks.push({
+              title: kb.title,
+              content: currentChunk.trim(),
+              category: kb.category,
+              chunk_id: chunks.length + 1
+            });
+          }
+        } else {
+          // Small documents - keep as is
+          chunks.push({
+            title: kb.title,
+            content: content,
+            category: kb.category,
+            chunk_id: 1
+          });
+        }
+        
+        return chunks;
+      });
       
-      console.log(`Found ${knowledgeBase.length} usable knowledge base items for company`);
+      console.log(`Processed ${knowledgeBase.length} KB chunks from ${companyKnowledge.length} documents`);
     } catch (kbError) {
       console.error('Failed to fetch knowledge base:', kbError.message);
     }

@@ -388,17 +388,34 @@ class LightweightResponseGenerator:
                     self.state_manager.advance_stage(call_sid, force_stage='escalation')
                 current_stage = 'escalation'
             
-            # Generate response based on stage
-            response_text = self._get_stage_based_response(
-                stage=current_stage,
-                intent=intent,
-                language=language,
-                personality=personality,
-                kb_info=relevant_kb_info,
-                company_name=company_name,
-                sentiment=sentiment,
-                user_message=user_message
-            )
+            # NEW: Check if user is asking specific question about KB content
+            is_question = any(word in user_message.lower() for word in [
+                'what', 'how', 'when', 'where', 'why', 'who', 'which',
+                'kya', 'kaise', 'kab', 'kahan', 'kyun', 'kaun', 'kaunsa',
+                'tell', 'explain', 'batao', 'samjhao', 'about', 'baare'
+            ])
+
+            if is_question and relevant_kb_info and current_stage in ['needs_assessment', 'solution_pitch', 'objection_handling']:
+                # Generate answer from KB
+                logger.info("User asked question - generating KB-based answer")
+                response_text = self._generate_kb_answer(
+                    user_question=user_message,
+                    kb_content=relevant_kb_info,
+                    language=language,
+                    personality=personality
+                )
+            else:
+                # Use stage-based response
+                response_text = self._get_stage_based_response(
+                    stage=current_stage,
+                    intent=intent,
+                    language=language,
+                    personality=personality,
+                    kb_info=relevant_kb_info,
+                    company_name=company_name,
+                    sentiment=sentiment,
+                    user_message=user_message
+                )
             
             logger.info(f"Generated response: {response_text[:100]}...")
             
@@ -511,11 +528,11 @@ Respond as {personality} in {language}. Focus on:
         elif stage == 'introduction':
             if kb_info:
                 if language == 'hindi':
-                    return f"Dhanyawad! Hamare paas ye services hain: {kb_info[:150]}. Kya aap is baare mein aur jaanna chahenge?"
+                    return f"Dhanyawad! Main aapko detail mein batata hun. {kb_info[:800]}. Kya aap is baare mein aur jaanna chahenge?"
                 elif language == 'hinglish':
-                    return f"Thank you! Hamare paas ye hai: {kb_info[:150]}. Kya aap interested hain to know more?"
+                    return f"Thank you! Let me explain in detail. {kb_info[:800]}. Aap interested hain to know more?"
                 else:
-                    return f"Great! We specialize in: {kb_info[:150]}. Would you like to hear more about this?"
+                    return f"Great! Let me share the details. {kb_info[:800]}. Would you like to hear more about this?"
             else:
                 if language == 'hindi':
                     return f"{company_name} comprehensive business solutions provide karta hai. Aapko kis service ke baare mein jaanna hai?"
@@ -533,20 +550,20 @@ Respond as {personality} in {language}. Focus on:
                     return "Our pricing depends on your requirements. How many users would you need this for?"
             elif intent == 'services':
                 if language == 'hindi':
-                    return f"Bilkul! Hamare paas multiple services hain. {kb_info[:200] if kb_info else 'Cloud, hosting, aur support services'}. Aapki company ki specific need kya hai?"
+                    return f"Bilkul! Hamare paas multiple services hain. {kb_info[:800] if kb_info else 'Cloud, hosting, aur support services'}. Aapki company ki specific need kya hai?"
                 elif language == 'hinglish':
-                    return f"Absolutely! We offer {kb_info[:200] if kb_info else 'cloud, hosting, support services'}. Aapki specific need kya hai?"
+                    return f"Absolutely! We offer {kb_info[:800] if kb_info else 'cloud, hosting, support services'}. Aapki specific need kya hai?"
                 else:
-                    return f"Absolutely! We offer {kb_info[:200] if kb_info else 'cloud, hosting, and support services'}. What's your company's specific need?"
+                    return f"Absolutely! We offer {kb_info[:800] if kb_info else 'cloud, hosting, and support services'}. What's your company's specific need?"
         
         elif stage == 'solution_pitch':
             if kb_info:
                 if language == 'hindi':
-                    return f"Perfect! Hamare solution mein ye features hain: {kb_info[:250]}. Ye aapki needs match kar raha hai. Kya aap demo dekhna chahenge?"
+                    return f"Perfect! Hamare solution mein ye features hain: {kb_info[:800]}. Ye aapki needs match kar raha hai. Kya aap demo dekhna chahenge?"
                 elif language == 'hinglish':
-                    return f"Perfect! Our solution includes: {kb_info[:250]}. This matches your needs. Demo dekhna chahenge?"
+                    return f"Perfect! Our solution includes: {kb_info[:800]}. This matches your needs. Demo dekhna chahenge?"
                 else:
-                    return f"Perfect! Our solution includes: {kb_info[:250]}. This aligns well with your needs. Would you like to see a demo?"
+                    return f"Perfect! Our solution includes: {kb_info[:800]}. This aligns well with your needs. Would you like to see a demo?"
             else:
                 if language == 'hindi':
                     return f"Hamare solution se aap 30-40% cost save kar sakte hain aur 24/7 support milega. Kya ye interesting lagta hai?"
@@ -635,55 +652,168 @@ Respond as {personality} in {language}. Focus on:
         
         return response
     
-    def _search_knowledge_base(self, user_message: str, knowledge_base: List) -> str:
-        """Search knowledge base for relevant content based on user message"""
+    def _search_knowledge_base(self, query: str, knowledge_base: List) -> str:
+        """Enhanced semantic knowledge base search with better matching"""
         if not knowledge_base:
+            logger.info("No knowledge base provided")
             return ""
         
-        user_msg_lower = user_message.lower()
-        relevant_content = []
-        match_scores = []
+        logger.info(f"Searching {len(knowledge_base)} KB items for query: {query[:100]}")
         
-        # Enhanced search with better matching
-        for kb_item in knowledge_base:
-            content = kb_item.get('content', '').lower()
-            title = kb_item.get('title', '').lower()
+        # Extract query keywords
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
+        
+        # Remove common words for better matching
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                      'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+                      'what', 'how', 'when', 'where', 'why', 'who', 'which', 'this', 'that',
+                      'me', 'tell', 'about', 'your', 'you', 'i', 'my', 'can', 'could', 'would'}
+        
+        meaningful_words = query_words - stop_words
+        
+        # Score each KB item
+        scored_items = []
+        for item in knowledge_base:
+            content = item.get('content', '').lower()
+            title = item.get('title', '').lower()
             
-            # Get meaningful words (3+ characters, not common words)
-            user_words = [word for word in user_msg_lower.split() 
-                         if len(word) > 2 and word not in ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may', 'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'hai', 'aur', 'kya', 'koi']]
-            
+            # Calculate relevance score
             score = 0
-            matched_words = []
             
-            # Score based on word matches
-            for word in user_words:
+            # Title match (high weight)
+            for word in meaningful_words:
+                if word in title:
+                    score += 10
+            
+            # Content match (medium weight)
+            for word in meaningful_words:
+                # Exact word match
                 if word in content:
-                    score += 2  # Content match
-                    matched_words.append(word)
-                elif word in title:
-                    score += 3  # Title match (higher priority)
-                    matched_words.append(word)
-                # Partial matches
-                elif any(word in content_word for content_word in content.split() if len(content_word) > 4):
-                    score += 1
+                    score += 2
+                
+                # Partial match (for longer words)
+                if len(word) > 4:
+                    for content_word in content.split():
+                        if word in content_word or content_word in word:
+                            score += 1
+            
+            # Bonus for multiple word matches
+            matched_words = sum(1 for word in meaningful_words if word in content)
+            if matched_words > 1:
+                score += matched_words * 2
             
             if score > 0:
-                match_scores.append((score, kb_item, matched_words))
+                scored_items.append({
+                    'item': item,
+                    'score': score
+                })
         
-        # Sort by score and return best matches
-        if match_scores:
-            match_scores.sort(key=lambda x: x[0], reverse=True)
-            # Return top 2 matches with highest scores
-            top_matches = match_scores[:2]
-            relevant_content = [item[1].get('content', '')[:400] for item in top_matches]
-            return " ".join(relevant_content)
+        # Sort by relevance
+        scored_items.sort(key=lambda x: x['score'], reverse=True)
         
-        # If no matches found, return first KB item as fallback
-        if knowledge_base:
-            return knowledge_base[0].get('content', '')[:400]
+        logger.info(f"Found {len(scored_items)} relevant KB items")
         
-        return ""
+        if not scored_items:
+            logger.info("No relevant KB content found for query")
+            return ""
+        
+        # CRITICAL FIX: Return MORE content (up to 2000 chars from top 3 items)
+        relevant_info = []
+        total_chars = 0
+        max_total_chars = 2000
+        
+        for item_data in scored_items[:5]:  # Check top 5 items
+            item = item_data['item']
+            title = item.get('title', 'Information')
+            content = item.get('content', '')
+            chunk_id = item.get('chunk_id', '')
+            
+            # Add title
+            section = f"\n[{title}"
+            if chunk_id:
+                section += f" - Part {chunk_id}"
+            section += f"]\n{content}\n"
+            
+            # Check if adding this would exceed limit
+            if total_chars + len(section) > max_total_chars:
+                # Add partial content
+                remaining = max_total_chars - total_chars
+                if remaining > 200:  # Only add if meaningful
+                    section = section[:remaining] + "..."
+                    relevant_info.append(section)
+                break
+            
+            relevant_info.append(section)
+            total_chars += len(section)
+            
+            logger.info(f"Added KB item: {title[:50]}... (score: {item_data['score']}, length: {len(content)})")
+        
+        result = "\n".join(relevant_info)
+        logger.info(f"Returning {len(result)} chars of KB content from {len(relevant_info)} items")
+        
+        return result
+    
+    def _generate_kb_answer(self, user_question: str, kb_content: str, language: str, personality: str) -> str:
+        """Generate natural conversational answer from KB content"""
+        
+        if not kb_content:
+            # No KB content found
+            responses = {
+                'hindi': "Mujhe is baare mein zyada jaankari nahi hai. Main aapko apne team se connect kar deta hun jo detail mein bata sakenge.",
+                'hinglish': "I don't have detailed info on this. Let me connect you with our team jo detail mein explain kar sakenge.",
+                'english': "I don't have detailed information on this topic. Let me connect you with our team who can explain in detail."
+            }
+            return responses.get(language, responses['english'])
+        
+        # Extract key information from KB
+        # For now, just return a natural response with KB content
+        # You can enhance this with actual LLM later
+        
+        question_lower = user_question.lower()
+        
+        # Determine question type
+        is_what_question = any(word in question_lower for word in ['what', 'kya', 'kaunsa'])
+        is_how_question = any(word in question_lower for word in ['how', 'kaise', 'kitna'])
+        is_when_question = any(word in question_lower for word in ['when', 'kab'])
+        is_why_question = any(word in question_lower for word in ['why', 'kyun', 'kyu'])
+        
+        # Personality-based intros
+        intros = {
+            'priyanshu': {
+                'hindi': "Ji haan, main aapko batata hun. ",
+                'hinglish': "Sure, let me explain. ",
+                'english': "Absolutely! Let me explain. "
+            },
+            'tanmay': {
+                'hindi': "Bilkul! Ye suniye! ",
+                'hinglish': "For sure! Dekho, ",
+                'english': "Totally! Check this out! "
+            },
+            'ekta': {
+                'hindi': "Avashya. Main aapko vistar se samjhati hun. ",
+                'hinglish': "Certainly. I'll explain in detail. ",
+                'english': "Certainly. I'll explain this thoroughly. "
+            },
+            'priyanka': {
+                'hindi': "Technical roop se dekhein toh, ",
+                'hinglish': "From a technical perspective, ",
+                'english': "From a technical standpoint, "
+            }
+        }
+        
+        intro = intros.get(personality, intros['priyanshu']).get(language, intros['priyanshu']['english'])
+        
+        # Format response based on KB content length
+        if len(kb_content) > 1500:
+            # Long content - summarize key points
+            kb_summary = kb_content[:1200]
+            response = f"{intro}{kb_summary}... Kya aap is baare mein koi specific detail jaanna chahenge?"
+        else:
+            # Short content - use as is
+            response = f"{intro}{kb_content}"
+        
+        return response
     
     def _get_kb_enhanced_response(self, personality: str, language: str, intent: str, 
                                 company_name: str, kb_info: str, sentiment: Dict) -> str:
