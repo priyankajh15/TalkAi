@@ -6,9 +6,10 @@ const CallLogSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
       required: true,
+      index: true,
     },
 
-    callId: { type: String, required: true },
+    callId: { type: String, required: true, index: true },
     callerNumber: { type: String },
     receiverNumber: { type: String }, // Target number being called
     botName: { type: String }, // AI personality name
@@ -20,6 +21,7 @@ const CallLogSchema = new mongoose.Schema(
     handledBy: {
       type: String,
       enum: ["AI", "Human"],
+      index: true,
     },
 
     escalationReason: { type: String },
@@ -29,5 +31,8 @@ const CallLogSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Compound index for frequent sorted queries
+CallLogSchema.index({ companyId: 1, createdAt: -1 });
 
 module.exports = mongoose.model("CallLog", CallLogSchema);

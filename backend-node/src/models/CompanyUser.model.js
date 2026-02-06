@@ -9,14 +9,17 @@ const CompanyUserSchema = new mongoose.Schema(
     },
 
     name: { type: String, required: true },
-    email: { 
-      type: String, 
-      required: [true, 'Email is required'], 
+    email: {
+      type: String,
+      required: [true, 'Email is required'],
       unique: true,
       lowercase: true,
       trim: true
     },
     password: { type: String, required: true },
+
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
 
     role: {
       type: String,
@@ -33,7 +36,7 @@ const CompanyUserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-CompanyUserSchema.post('save', function(error, doc, next) {
+CompanyUserSchema.post('save', function (error, doc, next) {
   if (error.code === 11000) {
     next(new Error('Email already exists'));
   } else {

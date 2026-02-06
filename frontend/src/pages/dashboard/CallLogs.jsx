@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../layouts/DashboardLayout';
@@ -19,6 +19,7 @@ const CallLogs = () => {
   const [showCallDetails, setShowCallDetails] = useState(false);
   const [playingAudio, setPlayingAudio] = useState({});
   const [pageSize, setPageSize] = useState(25);
+  const [loadingMessage, setLoadingMessage] = useState('Fetching call logs...');
   const [filters, setFilters] = useState({
     status: 'all',
     channelType: 'all',
@@ -41,6 +42,17 @@ const CallLogs = () => {
     }
   });
 
+  // Handle slow server message
+  useEffect(() => {
+    let timer;
+    if (isLoading) {
+      timer = setTimeout(() => {
+        setLoadingMessage('Waking up server, please wait (15-20s)...');
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   const callLogs = callLogsData?.data?.callLogs || [];
 
   // Apply filters to call logs
@@ -48,7 +60,7 @@ const CallLogs = () => {
     // Search filter
     if (debouncedSearch) {
       const searchLower = debouncedSearch.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         call.callId?.toLowerCase().includes(searchLower) ||
         call.receiverNumber?.toLowerCase().includes(searchLower) ||
         call.botName?.toLowerCase().includes(searchLower);
@@ -133,7 +145,7 @@ const CallLogs = () => {
       console.log('No recording available for this call');
       return;
     }
-    
+
     try {
       const response = await aiAPI.getRecording(callId);
       const recordingUrl = response.data.data.recording_url;
@@ -172,9 +184,15 @@ const CallLogs = () => {
           <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
             Call Logs
           </h1>
-          <p style={{ color: '#999', fontSize: '16px' }}>
-            View and analyze your call history
-          </p>
+          {isLoading ? (
+            <p style={{ color: '#667eea', fontSize: '14px' }}>
+              {loadingMessage}
+            </p>
+          ) : (
+            <p style={{ color: '#999', fontSize: '16px' }}>
+              View and analyze your call history
+            </p>
+          )}
         </div>
 
         {/* Filters Section */}
@@ -222,8 +240,8 @@ const CallLogs = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-              <select 
-                className="input" 
+              <select
+                className="input"
                 style={{ width: '80px', padding: '8px' }}
                 value={pageSize}
                 onChange={(e) => setPageSize(parseInt(e.target.value))}
@@ -246,10 +264,10 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Call Status
                 </label>
-                <select 
+                <select
                   className="input"
                   value={filters.status}
-                  onChange={(e) => setFilters({...filters, status: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                 >
                   <option value="all">All Statuses</option>
                   <option value="ai">AI Handled</option>
@@ -261,10 +279,10 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Channel Type
                 </label>
-                <select 
+                <select
                   className="input"
                   value={filters.channelType}
-                  onChange={(e) => setFilters({...filters, channelType: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, channelType: e.target.value })}
                 >
                   <option value="all">All Channels</option>
                   <option value="inbound">Inbound</option>
@@ -276,10 +294,10 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Call Transferred
                 </label>
-                <select 
+                <select
                   className="input"
                   value={filters.transferred}
-                  onChange={(e) => setFilters({...filters, transferred: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, transferred: e.target.value })}
                 >
                   <option value="all">All</option>
                   <option value="yes">Yes</option>
@@ -291,12 +309,12 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Duration (Min)
                 </label>
-                <input 
-                  type="number" 
-                  placeholder="Min" 
+                <input
+                  type="number"
+                  placeholder="Min"
                   className="input"
                   value={filters.minDuration}
-                  onChange={(e) => setFilters({...filters, minDuration: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, minDuration: e.target.value })}
                 />
               </div>
 
@@ -304,12 +322,12 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Duration (Max)
                 </label>
-                <input 
-                  type="number" 
-                  placeholder="Max" 
+                <input
+                  type="number"
+                  placeholder="Max"
                   className="input"
                   value={filters.maxDuration}
-                  onChange={(e) => setFilters({...filters, maxDuration: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, maxDuration: e.target.value })}
                 />
               </div>
 
@@ -317,11 +335,11 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   Start Date
                 </label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   className="input"
                   value={filters.startDate}
-                  onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
                 />
               </div>
 
@@ -329,11 +347,11 @@ const CallLogs = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#999' }}>
                   End Date
                 </label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   className="input"
                   value={filters.endDate}
-                  onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                 />
               </div>
             </div>
@@ -402,12 +420,12 @@ const CallLogs = () => {
                     cursor: 'pointer',
                     transition: 'background-color 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}>
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}>
                     <div style={{ marginBottom: '0' }}>
                       <div style={{ color: '#fff', fontWeight: '500' }}>
                         {formatDate(call.createdAt)}
@@ -502,7 +520,7 @@ const CallLogs = () => {
                           >
                             <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
                           </button>
-                          
+
                           <div style={{
                             flex: 1,
                             height: '4px',
@@ -517,7 +535,7 @@ const CallLogs = () => {
                               borderRadius: '2px'
                             }} />
                           </div>
-                          
+
                           <span style={{
                             color: '#9ca3af',
                             fontSize: '11px',

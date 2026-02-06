@@ -1,21 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { fadeIn } from '../../utils/animations';
 import { toast } from '../../components/Toast';
 import { validateField } from '../../utils/validation.jsx';
 import { Card, Button, Input } from '../../components';
+import { useMutation } from '@tanstack/react-query';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  
+  const [loadingMessage, setLoadingMessage] = useState('Signing in...');
+
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Handle slow server message
+  useEffect(() => {
+    let timer;
+    if (touched.submitting) {
+      timer = setTimeout(() => {
+        setLoadingMessage('Waking up server, please wait...');
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [touched.submitting]);
+
+  const loginMutation = useMutation({
+    mutationFn: async ({ email, password }) => {
+      return await login(email, password);
+    },
+    onSuccess: () => {
+      toast.success('Login successful!');
+      navigate('/dashboard');
+    },
+    onError: (err) => {
+      const errorMessage = err.response?.data?.message || 'Login failed';
+      toast.error(errorMessage);
+    }
+  });
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
@@ -39,33 +64,20 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    
+
     // Validate fields
     const emailError = validateField('email', email);
     const passwordError = validateField('password', password);
-    
+
     setErrors({ email: emailError, password: passwordError });
-    setTouched({ email: true, password: true });
-    
+    setTouched({ email: true, password: true, submitting: true });
+
     if (emailError || passwordError) {
       toast.error('Please fix the errors below');
       return;
     }
-    
-    setLoading(true);
 
-    try {
-      await login(email, password);
-      toast.success('Login successful!');
-      navigate('/dashboard');
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Login failed';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    loginMutation.mutate({ email, password });
   };
 
   return (
@@ -88,7 +100,7 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {error && (
+          {loginMutation.isError && (
             <div style={{
               background: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -97,10 +109,10 @@ const Login = () => {
               marginBottom: '20px',
               color: '#ef4444'
             }}>
-              {error}
+              {loginMutation.error.response?.data?.message || 'Login failed'}
             </div>
           )}
-          
+
           <Input
             name="email"
             type="email"
@@ -113,26 +125,40 @@ const Login = () => {
             required
           />
 
-          <Input
-            name="password"
-            type="password"
-            value={password}
-            onChange={handlePasswordChange}
-            onBlur={handleBlur}
-            error={errors.password}
-            touched={touched.password}
-            placeholder="Password"
-            required
-            style={{ marginBottom: '30px' }}
-          />
+          <div style={{ position: 'relative' }}>
+            <Input
+              name="password"
+              type="password"
+              value={password}
+              onChange={handlePasswordChange}
+              onBlur={handleBlur}
+              error={errors.password}
+              touched={touched.password}
+              placeholder="Password"
+              required
+            />
+            <div style={{
+              textAlign: 'right',
+              marginTop: '-15px',
+              marginBottom: '20px'
+            }}>
+              <Link to="/forgot-password" style={{
+                color: '#667eea',
+                fontSize: '12px',
+                textDecoration: 'none'
+              }}>
+                Forgot Password?
+              </Link>
+            </div>
+          </div>
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             style={{ width: '100%', marginBottom: '20px' }}
-            disabled={loading}
-            loading={loading}
+            disabled={loginMutation.isPending}
+            loading={loginMutation.isPending}
           >
-            Sign In
+            {loginMutation.isPending ? loadingMessage : 'Sign In'}
           </Button>
         </form>
 

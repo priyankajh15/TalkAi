@@ -5,6 +5,8 @@ import { Toaster } from './components/Toast';
 import Landing from './pages/Landing';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/dashboard/Dashboard';
 import VoiceAIAssistants from './pages/dashboard/VoiceAIAssistants';
 import KnowledgeBase from './pages/dashboard/KnowledgeBase';
@@ -84,6 +86,16 @@ function App() {
             <Route path="/signup" element={
               <PublicRoute>
                 <Signup />
+              </PublicRoute>
+            } />
+            <Route path="/forgot-password" element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            } />
+            <Route path="/reset-password/:token" element={
+              <PublicRoute>
+                <ResetPassword />
               </PublicRoute>
             } />
             <Route path="/dashboard" element={

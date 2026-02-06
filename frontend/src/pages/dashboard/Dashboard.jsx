@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../layouts/DashboardLayout';
@@ -8,6 +9,7 @@ import { Card, Button } from '../../components';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const [loadingMessage, setLoadingMessage] = useState('Loading dashboard...');
 
   // ✅ USEQUERY: Get real-time knowledge count
   const { data: knowledgeStats, isLoading } = useQuery({
@@ -20,12 +22,28 @@ const Dashboard = () => {
     }
   });
 
+  // Handle slow server message
+  useEffect(() => {
+    let timer;
+    if (isLoading) {
+      timer = setTimeout(() => {
+        setLoadingMessage('Waking up server, please wait (15-20s)...');
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   return (
     <DashboardLayout>
       <div style={{ padding: 'clamp(16px, 4vw, 30px)', ...fadeIn }}>
         {/* Header */}
         <div style={{ marginBottom: '30px' }}>
           <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Dashboard</h1>
+          {isLoading && (
+            <p style={{ color: '#667eea', fontSize: '14px', animate: 'pulse 2s infinite' }}>
+              {loadingMessage}
+            </p>
+          )}
         </div>
 
         {/* Stats Cards */}

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { fadeIn } from '../../utils/animations';
 import { toast } from '../../components/Toast';
 import { validateField } from '../../utils/validation.jsx';
 import { Card, Button, Input } from '../../components';
+import { useMutation } from '@tanstack/react-query';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -13,13 +14,42 @@ const Signup = () => {
     password: '',
     companyName: ''
   });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
-  
+  const [loadingMessage, setLoadingMessage] = useState('Creating account...');
+
   const { signup } = useAuth();
   const navigate = useNavigate();
+
+  // Handle slow server message
+  useEffect(() => {
+    let timer;
+    if (touched.submitting) {
+      timer = setTimeout(() => {
+        setLoadingMessage('Waking up server, please wait...');
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [touched.submitting]);
+
+  const signupMutation = useMutation({
+    mutationFn: async (data) => {
+      return await signup(data.email, data.password, data.companyName, data.name);
+    },
+    onSuccess: () => {
+      toast.success('Account created successfully! Welcome to TalkAi!');
+      navigate('/dashboard');
+    },
+    onError: (err) => {
+      let errorMessage;
+      if (err.response?.data?.errors) {
+        errorMessage = err.response.data.errors.map(e => e.message).join(', ');
+      } else {
+        errorMessage = err.response?.data?.message || 'Signup failed';
+      }
+      toast.error(errorMessage);
+    }
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,8 +57,7 @@ const Signup = () => {
       ...formData,
       [name]: value
     });
-    
-    // Clear error when user starts typing
+
     if (touched[name]) {
       setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
     }
@@ -42,43 +71,22 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    
+
     // Validate all fields
     const newErrors = {};
     Object.keys(formData).forEach(key => {
       newErrors[key] = validateField(key, formData[key]);
     });
-    
+
     setErrors(newErrors);
-    setTouched({ name: true, email: true, password: true, companyName: true });
-    
-    // Check if there are any errors
+    setTouched({ name: true, email: true, password: true, companyName: true, submitting: true });
+
     if (Object.values(newErrors).some(error => error)) {
       toast.error('Please fix the errors below');
       return;
     }
-    
-    setLoading(true);
 
-    try {
-      await signup(formData.email, formData.password, formData.companyName, formData.name);
-      toast.success('Account created successfully! Welcome to TalkAi!');
-      navigate('/dashboard');
-    } catch (err) {
-      console.log('Signup error:', err.response?.data);
-      let errorMessage;
-      if (err.response?.data?.errors) {
-        // Show specific validation errors
-        errorMessage = err.response.data.errors.map(e => e.message).join(', ');
-      } else {
-        errorMessage = err.response?.data?.message || 'Signup failed';
-      }
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    signupMutation.mutate(formData);
   };
 
   return (
@@ -101,7 +109,7 @@ const Signup = () => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {error && (
+          {signupMutation.isError && (
             <div style={{
               background: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -110,10 +118,10 @@ const Signup = () => {
               marginBottom: '20px',
               color: '#ef4444'
             }}>
-              {error}
+              {signupMutation.error.response?.data?.message || 'Signup failed'}
             </div>
           )}
-          
+
           <Input
             name="name"
             value={formData.name}
@@ -160,13 +168,13 @@ const Signup = () => {
             required
           />
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             style={{ width: '100%', marginBottom: '20px' }}
-            disabled={loading}
-            loading={loading}
+            disabled={signupMutation.isPending}
+            loading={signupMutation.isPending}
           >
-            Sign Up
+            {signupMutation.isPending ? loadingMessage : 'Sign Up'}
           </Button>
         </form>
 
