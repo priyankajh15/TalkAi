@@ -112,13 +112,35 @@ const getRecording = async (req, res) => {
       });
     }
     
-    res.json({
-      success: true,
-      data: {
-        recording_url: callLog.recordingUrl,
-        recording_sid: callLog.recordingSid
-      }
-    });
+    // Proxy the recording through backend to avoid authentication popup
+    const axios = require('axios');
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    
+    try {
+      const response = await axios.get(callLog.recordingUrl, {
+        auth: {
+          username: accountSid,
+          password: authToken
+        },
+        responseType: 'stream'
+      });
+      
+      // Set headers for audio file
+      res.setHeader('Content-Type', 'audio/wav');
+      res.setHeader('Content-Disposition', `attachment; filename="recording-${callId}.wav"`);
+      
+      // Pipe the recording stream to response
+      response.data.pipe(res);
+      
+    } catch (twilioError) {
+      console.error('Failed to fetch recording from Twilio:', twilioError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch recording from Twilio'
+      });
+    }
+    
   } catch (error) {
     res.status(500).json({
       success: false,

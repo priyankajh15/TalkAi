@@ -147,23 +147,48 @@ const CallLogs = () => {
     }
 
     try {
-      const response = await aiAPI.getRecording(callId);
-      const recordingUrl = response.data.data.recording_url;
-
+      // Use backend proxy to download recording
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/call-logs/${callId}/recording`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.log('Recording download failed - no recording available');
+        return;
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = recordingUrl;
+      link.href = url;
       link.download = `call-recording-${callId}.wav`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.log('Recording download failed - no recording available');
     }
   };
 
-  const toggleAudio = (callId) => {
+  const toggleAudio = async (callId) => {
     const audioElement = document.getElementById(`audio-${callId}`);
-    if (audioElement && audioElement.src) {
+    const call = callLogs.find(c => c._id === callId);
+    
+    if (!call?.recordingUrl) {
+      console.log('No recording available');
+      return;
+    }
+    
+    if (audioElement) {
+      // Set audio source to backend proxy URL if not already set
+      if (!audioElement.src || audioElement.src === window.location.href) {
+        const proxyUrl = `${import.meta.env.VITE_API_URL}/api/call-logs/${callId}/recording`;
+        audioElement.src = proxyUrl;
+      }
+      
       if (playingAudio[callId]) {
         audioElement.pause();
         setPlayingAudio(prev => ({ ...prev, [callId]: false }));
@@ -492,11 +517,7 @@ const CallLogs = () => {
                           style={{ display: 'none' }}
                           onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
                           onError={() => console.log('Audio failed to load')}
-                        >
-                          {call.recordingUrl && (
-                            <source src={call.recordingUrl} type="audio/wav" />
-                          )}
-                        </audio>
+                        />
 
                         <div style={{
                           display: 'flex',
