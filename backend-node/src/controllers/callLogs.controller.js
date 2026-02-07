@@ -90,9 +90,48 @@ const updateCallLog = async (req, res) => {
   }
 };
 
+// Get recording URL for a call
+const getRecording = async (req, res) => {
+  try {
+    const { callId } = req.params;
+    const companyId = req.user.companyId;
+    
+    const callLog = await CallLog.findOne({ _id: callId, companyId });
+    
+    if (!callLog) {
+      return res.status(404).json({
+        success: false,
+        message: 'Call log not found or access denied'
+      });
+    }
+    
+    if (!callLog.recordingUrl) {
+      return res.status(404).json({
+        success: false,
+        message: 'No recording available for this call'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        recording_url: callLog.recordingUrl,
+        recording_sid: callLog.recordingSid
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recording',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getCallLogs,
   createCallLog,
   updateCallLog,
+  getRecording,
   CallLog
 };

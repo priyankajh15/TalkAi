@@ -134,6 +134,8 @@ exports.makeVoiceCall = async (req, res) => {
       to: formattedNumber,
       from: twilioNumber,
       method: 'POST',
+      record: true, // Enable call recording
+      recordingStatusCallback: `${webhookUrl}/status`, // Recording callback
       statusCallback: `${webhookUrl}/status`, // Add status callback
       statusCallbackEvent: ['completed', 'failed', 'no-answer']
     });
@@ -629,20 +631,29 @@ exports.collectCallback = async (req, res) => {
  */
 exports.handleCallStatus = async (req, res) => {
   try {
-    const { CallSid, CallStatus, CallDuration } = req.body;
+    const { CallSid, CallStatus, CallDuration, RecordingUrl, RecordingSid } = req.body;
     
     console.log(`Call ${CallSid} status: ${CallStatus}`);
     
     if (CallStatus === 'completed' || CallStatus === 'failed' || CallStatus === 'no-answer') {
-      // Update call log with final status
+      // Update call log with final status and recording
       try {
+        const updateData = { 
+          endTime: new Date(),
+          duration: CallDuration ? parseInt(CallDuration) : null,
+          status: CallStatus
+        };
+        
+        // Add recording URL if available
+        if (RecordingUrl) {
+          updateData.recordingUrl = RecordingUrl;
+          updateData.recordingSid = RecordingSid;
+          console.log(`Recording URL saved for ${CallSid}: ${RecordingUrl}`);
+        }
+        
         await CallLog.findOneAndUpdate(
           { callId: CallSid },
-          { 
-            endTime: new Date(),
-            duration: CallDuration ? parseInt(CallDuration) : null,
-            status: CallStatus
-          }
+          updateData
         );
         console.log(`Updated call log for ${CallSid}`);
       } catch (logError) {

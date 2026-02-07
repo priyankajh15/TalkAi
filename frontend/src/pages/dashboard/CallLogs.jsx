@@ -371,9 +371,14 @@ const CallLogs = () => {
 
             {/* Horizontal scroll container */}
             <div style={{
-              overflowX: 'visible',
-              overflowY: 'visible'
-            }}>
+              overflowX: 'auto',
+              overflowY: 'visible',
+              WebkitOverflowScrolling: 'touch'
+            }}
+            className="custom-scrollbar">
+
+              {/* Minimum width wrapper for horizontal scroll */}
+              <div style={{ minWidth: '1200px' }}>
 
               {/* Table Header */}
               <div style={{
@@ -564,6 +569,7 @@ const CallLogs = () => {
                   </div>
                 ))
               )}
+            </div>
             </div>
           </div>
         )}

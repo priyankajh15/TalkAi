@@ -28,6 +28,9 @@ const CallLogSchema = new mongoose.Schema(
     transcript: { type: String },
 
     abusiveDetected: { type: Boolean, default: false },
+    recordingUrl: { type: String },
+    recordingSid: { type: String },
+    status: { type: String },
   },
   { timestamps: true }
 );
