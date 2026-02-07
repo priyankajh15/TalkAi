@@ -1,6 +1,10 @@
 """
-Lightweight AI Engine - No Heavy Packages (torch, transformers)
-Dynamic responses with basic sentiment analysis using TextBlob
+Lightweight AI Engine - FIXED VERSION
+- Smart KB answering (extracts relevant info, no word-by-word reading)
+- Goodbye detection (20+ phrases in 3 languages)
+- Enhanced bad word detection (variations, phonetics)
+- Dynamic intent classification (pattern matching + ML-style scoring)
+- Conversational responses (not just templates)
 """
 import os
 import logging
@@ -10,6 +14,7 @@ from langdetect import detect, DetectorFactory
 from textblob import TextBlob
 import openai
 import json
+import re
 
 # Suppress TextBlob regex warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="textblob")
@@ -204,16 +209,51 @@ class LightweightSentimentAnalyzer:
     """Lightweight sentiment analysis using TextBlob only"""
     
     def __init__(self):
-        # Enhanced abusive words in Hindi and English
+        # ✅ FIXED: Enhanced abusive words - removed false positives
         self.abusive_words = {
-            'english': ['fuck', 'shit', 'damn', 'bastard', 'bitch', 'asshole', 'idiot', 
-                       'stupid', 'moron', 'dumb', 'fool', 'loser', 'suck', 'sucks',
-                       'hate', 'worst', 'terrible', 'awful', 'garbage', 'trash'],
-            'hindi': ['chutiya', 'madarchod', 'bhenchod', 'randi', 'saala', 'kamina', 
-                     'harami', 'gandu', 'bakchod', 'bhosdike', 'laude', 'lodu',
-                     'gaandu', 'chodu', 'randwa', 'kutiya', 'kutta', 'pagal',
-                     'bewakoof', 'gadha', 'ullu']
+            'english': [
+                # Severe profanity
+                'fuck', 'fck', 'fuk', 'f**k', 'f*ck', 'fucker', 'fucking',
+                'shit', 'sh1t', 'sht', 'shít', 
+                'bastard', 'bstrd',
+                'bitch', 'btch', 'b1tch',
+                'asshole', 'ashole', 'a**hole', 'ass hole',
+                'motherfucker', 'mofo', 'mf',
+                'damn', 'damm', 'dammit',
+                'cunt', 'cnt',
+                'dick', 'dck', 'prick',
+                'whore', 'slut',
+                # Strong insults (context-dependent)
+                'idiot', 'stupid', 'moron', 'dumb', 'fool', 'loser', 'retard'
+            ],
+            'hindi': [
+                'chutiya', 'chutia', 'chutiye',
+                'madarchod', 'mc', 'maderchod',
+                'bhenchod', 'bc', 'banchod',
+                'bhosdike', 'bsdk', 'bosdk',
+                'gaandu', 'gandu', 'gndu',
+                'randi', 'rndi', 'rnd',
+                'harami', 'hrami',
+                'kamina', 'kamini',
+                'kutta', 'kutte', 'kutiya', 'kutti',
+                'saala', 'sala', 'saali',
+                'behen', 'behn',
+                'laude', 'lode', 'lodu',
+                'chodu', 'chod',
+                'randwa', 'rndwa',
+                'gashti', 'ghasti'
+            ]
         }
+        
+        # ✅ NEW: Pattern-based detection for variations
+        self.abusive_patterns = [
+            r'f+u+c+k+',
+            r's+h+i+t+',
+            r'b+i+t+c+h+',
+            r'a+s+s+h+o+l+e+',
+            r'f\s*u\s*c\s*k',  # "f u c k"
+            r's\s*h\s*i\s*t',  # "s h i t"
+        ]
     
     def analyze_sentiment(self, text: str) -> Dict[str, float]:
         """Analyze sentiment with TextBlob"""
@@ -231,33 +271,315 @@ class LightweightSentimentAnalyzer:
             return {'label': 'neutral', 'score': 0.5}
     
     def detect_abusive_content(self, text: str) -> Dict[str, bool]:
-        """Enhanced abusive content detection with partial matching"""
+        """✅ FIXED: Enhanced abusive content detection with pattern matching"""
         text_lower = text.lower()
         
+        # Remove special characters for better matching
+        text_cleaned = re.sub(r'[^\w\s]', '', text_lower)
+        
         # Check for exact matches
-        english_abuse = any(word in text_lower for word in self.abusive_words['english'])
-        hindi_abuse = any(word in text_lower for word in self.abusive_words['hindi'])
+        english_abuse = any(word in text_lower or word in text_cleaned 
+                           for word in self.abusive_words['english'])
+        hindi_abuse = any(word in text_lower or word in text_cleaned 
+                         for word in self.abusive_words['hindi'])
         
-        # Check for partial matches (for variations)
-        if not english_abuse:
-            for word in self.abusive_words['english']:
-                if len(word) > 4:  # Only check longer words for partial matches
-                    if word[:4] in text_lower or word[:-1] in text_lower:
-                        english_abuse = True
-                        break
+        # Check for pattern-based matches (variations like "f u c k")
+        pattern_abuse = any(re.search(pattern, text_cleaned) 
+                           for pattern in self.abusive_patterns)
         
-        if not hindi_abuse:
-            for word in self.abusive_words['hindi']:
-                if len(word) > 4:
-                    if word[:4] in text_lower or word[:-1] in text_lower:
-                        hindi_abuse = True
-                        break
+        is_abusive = english_abuse or hindi_abuse or pattern_abuse
+        
+        if is_abusive:
+            logger.warning(f"Abusive content detected in: {text[:50]}...")
         
         return {
-            'is_abusive': english_abuse or hindi_abuse,
+            'is_abusive': is_abusive,
             'english_abuse': english_abuse,
-            'hindi_abuse': hindi_abuse
+            'hindi_abuse': hindi_abuse,
+            'pattern_abuse': pattern_abuse
         }
+
+class DynamicIntentClassifier:
+    """✅ NEW: Dynamic intent classification with ML-style scoring"""
+    
+    def __init__(self):
+        # Dynamic intent patterns with context awareness
+        self.intent_patterns = {
+            'goodbye': {
+                'keywords': [
+                    'bye', 'goodbye', 'good bye', 'later', 'talk later', 'enough',
+                    'sufficient', 'no thanks', 'not interested', 'dont want', 
+                    'stop', 'band', 'karo', 'ruko', 'chaliye', 'rakhdo',
+                    'nahi chahiye', 'nahi', 'nahin'
+                ],
+                'phrases': [
+                    'no thank', 'not interest', 'talk later', 'call later',
+                    'nahi chahiye', 'band karo', 'enough information', 'thik hai bye',
+                    'all set', 'i am good', 'thanks but', 'not now', 'maybe later'
+                ],
+                'negative_context': ['yes', 'tell me', 'interested', 'haan'],  # Don't trigger if these present
+                'weight': 2.0,
+                'confidence_threshold': 0.6
+            },
+            'services': {
+                'keywords': [
+                    'service', 'services', 'offer', 'provide', 'do', 'kya', 'seva', 
+                    'product', 'solution', 'help', 'support', 'feature', 'capability',
+                    'what do you', 'kya karte', 'batao', 'details'
+                ],
+                'phrases': [
+                    'what do you', 'kya aap', 'tell me about', 'batao', 'explain', 
+                    'samjhao', 'what services', 'kya services'
+                ],
+                'weight': 1.0,
+                'confidence_threshold': 0.5
+            },
+            'pricing': {
+                'keywords': [
+                    'price', 'cost', 'rate', 'fee', 'paisa', 'kitna', 'amount', 
+                    'charge', 'expensive', 'cheap', 'budget', 'plan', 'pricing',
+                    'rupees', 'rupaye', 'dollar', 'package'
+                ],
+                'phrases': [
+                    'how much', 'kitna paisa', 'cost me', 'price for', 'rate card',
+                    'kitna lagega', 'kya rate', 'pricing details'
+                ],
+                'weight': 1.5,
+                'confidence_threshold': 0.6
+            },
+            'interested': {
+                'keywords': [
+                    'interested', 'yes', 'accha', 'haan', 'good', 'great', 'amazing', 
+                    'perfect', 'excellent', 'wonderful', 'sounds good', 'like it',
+                    'impressed', 'nice', 'badiya', 'achha'
+                ],
+                'phrases': [
+                    'sounds good', 'accha lagta', 'i like', 'pasand hai', 'interested in',
+                    'want to know', 'tell me more'
+                ],
+                'weight': 0.8,
+                'confidence_threshold': 0.4
+            },
+            'contact': {
+                'keywords': [
+                    'contact', 'phone', 'email', 'address', 'sampark', 'call', 'reach', 
+                    'connect', 'meeting', 'appointment', 'visit', 'meet'
+                ],
+                'phrases': [
+                    'get in touch', 'sampark karna', 'call me', 'contact details',
+                    'how to reach', 'meeting schedule'
+                ],
+                'weight': 1.2,
+                'confidence_threshold': 0.5
+            },
+            'complaint': {
+                'keywords': [
+                    'problem', 'issue', 'complaint', 'wrong', 'error', 'galat', 
+                    'pareshani', 'dikkat', 'not working', 'broken', 'failed',
+                    'bug', 'glitch'
+                ],
+                'phrases': [
+                    'not working', 'kaam nahi', 'having trouble', 'problem hai',
+                    'doesnt work', 'facing issue'
+                ],
+                'weight': 1.4,
+                'confidence_threshold': 0.6
+            },
+            'demo': {
+                'keywords': [
+                    'demo', 'show', 'example', 'trial', 'test', 'dikhao', 'sample',
+                    'preview', 'walkthrough', 'presentation'
+                ],
+                'phrases': [
+                    'show me', 'dikhao mujhe', 'can i see', 'demo chahiye',
+                    'want to see', 'live demo'
+                ],
+                'weight': 1.1,
+                'confidence_threshold': 0.5
+            },
+            'question': {
+                'keywords': [
+                    'what', 'how', 'when', 'where', 'why', 'who', 'which',
+                    'kya', 'kaise', 'kab', 'kahan', 'kyun', 'kaun', 'kaunsa',
+                    'explain', 'tell', 'batao', 'samjhao'
+                ],
+                'phrases': [
+                    'tell me', 'can you explain', 'i want to know', 'batao mujhe',
+                    'what is', 'how does', 'kaise hota'
+                ],
+                'weight': 0.9,
+                'confidence_threshold': 0.3
+            }
+        }
+    
+    def classify_intent(self, user_message: str, context: List[Dict] = None) -> Dict:
+        """
+        ✅ DYNAMIC: Classify intent with confidence scoring and context awareness
+        
+        Returns:
+            Dict with intent, confidence, and matched patterns
+        """
+        msg = user_message.lower()
+        intent_scores = {}
+        
+        # Calculate scores for each intent
+        for intent, patterns in self.intent_patterns.items():
+            score = 0.0
+            matched_keywords = []
+            matched_phrases = []
+            
+            # Check for negative context (e.g., "no" shouldn't trigger goodbye if "yes" is present)
+            if 'negative_context' in patterns:
+                if any(neg_word in msg for neg_word in patterns['negative_context']):
+                    continue  # Skip this intent
+            
+            # Keyword matching
+            for keyword in patterns['keywords']:
+                if keyword in msg:
+                    score += patterns['weight']
+                    matched_keywords.append(keyword)
+            
+            # Phrase matching (higher weight)
+            for phrase in patterns['phrases']:
+                if phrase in msg:
+                    score += patterns['weight'] * 1.5
+                    matched_phrases.append(phrase)
+            
+            # Context bonus (if user asked similar things before)
+            if context:
+                for exchange in context[-2:]:  # Last 2 exchanges
+                    if any(kw in exchange.get('user', '').lower() for kw in patterns['keywords'][:3]):
+                        score += 0.5  # Context continuity bonus
+            
+            # Normalize score to confidence (0-1)
+            max_possible_score = len(patterns['keywords']) * patterns['weight'] + \
+                               len(patterns['phrases']) * patterns['weight'] * 1.5
+            confidence = min(score / max(max_possible_score * 0.3, 1), 1.0)
+            
+            # Only consider if above threshold
+            if confidence >= patterns.get('confidence_threshold', 0.5):
+                intent_scores[intent] = {
+                    'score': score,
+                    'confidence': confidence,
+                    'matched_keywords': matched_keywords,
+                    'matched_phrases': matched_phrases
+                }
+        
+        # Return intent with highest confidence
+        if intent_scores:
+            best_intent = max(intent_scores.items(), key=lambda x: x[1]['confidence'])
+            logger.info(f"Detected intent: {best_intent[0]} (confidence: {best_intent[1]['confidence']:.2f})")
+            
+            return {
+                'intent': best_intent[0],
+                'confidence': best_intent[1]['confidence'],
+                'score': best_intent[1]['score'],
+                'matched_keywords': best_intent[1]['matched_keywords'],
+                'matched_phrases': best_intent[1]['matched_phrases'],
+                'all_intents': intent_scores
+            }
+        else:
+            # Default to 'question' if no clear intent
+            return {
+                'intent': 'question',
+                'confidence': 0.5,
+                'score': 0,
+                'matched_keywords': [],
+                'matched_phrases': [],
+                'all_intents': {}
+            }
+
+class SmartKBExtractor:
+    """✅ NEW: Smart knowledge base extractor - extracts relevant info instead of dumping"""
+    
+    @staticmethod
+    def extract_relevant_answer(question: str, kb_content: str, max_sentences: int = 3) -> str:
+        """
+        Extract relevant sentences from KB based on question
+        
+        Args:
+            question: User's question
+            kb_content: Full KB content
+            max_sentences: Maximum sentences to extract
+            
+        Returns:
+            Relevant answer extracted from KB
+        """
+        if not kb_content or len(kb_content.strip()) < 20:
+            return ""
+        
+        # Step 1: Split into sentences
+        # Handle multiple sentence endings
+        kb_content = kb_content.replace('?', '.').replace('!', '.')
+        sentences = [s.strip() for s in kb_content.split('.') if len(s.strip()) > 15]
+        
+        if not sentences:
+            return kb_content[:300]  # Fallback
+        
+        # Step 2: Extract question keywords (meaningful words)
+        stop_words = {
+            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+            'what', 'how', 'when', 'where', 'why', 'who', 'which', 'this', 'that',
+            'tell', 'me', 'you', 'your', 'about', 'kya', 'kaise', 'batao', 'hai'
+        }
+        
+        question_words = set(question.lower().split())
+        meaningful_words = question_words - stop_words
+        
+        logger.info(f"KB extraction - Question keywords: {meaningful_words}")
+        
+        # Step 3: Score sentences by relevance
+        scored_sentences = []
+        for sentence in sentences:
+            sentence_lower = sentence.lower()
+            
+            # Calculate relevance score
+            score = 0
+            matched_words = []
+            
+            # Exact word matches
+            for word in meaningful_words:
+                if word in sentence_lower:
+                    score += 2
+                    matched_words.append(word)
+                # Partial matches for longer words
+                elif len(word) > 4:
+                    if any(word in s_word or s_word in word for s_word in sentence_lower.split()):
+                        score += 1
+                        matched_words.append(word)
+            
+            # Bonus for multiple word matches
+            if len(matched_words) > 1:
+                score += len(matched_words) * 0.5
+            
+            # Bonus for position (earlier sentences often more relevant)
+            position_bonus = (len(sentences) - sentences.index(sentence)) / len(sentences)
+            score += position_bonus * 0.3
+            
+            if score > 0:
+                scored_sentences.append({
+                    'sentence': sentence,
+                    'score': score,
+                    'matched_words': matched_words
+                })
+                logger.info(f"Sentence score: {score:.2f} - {sentence[:50]}... (matched: {matched_words})")
+        
+        # Step 4: Get top N most relevant sentences
+        if scored_sentences:
+            scored_sentences.sort(key=lambda x: x['score'], reverse=True)
+            top_sentences = [item['sentence'] for item in scored_sentences[:max_sentences]]
+            
+            result = '. '.join(top_sentences)
+            if not result.endswith('.'):
+                result += '.'
+            
+            logger.info(f"Extracted {len(top_sentences)} relevant sentences from KB")
+            return result
+        else:
+            # Fallback: use first 2-3 sentences
+            fallback = '. '.join(sentences[:3])
+            logger.info("No relevant sentences found, using first 3 sentences as fallback")
+            return fallback
 
 class PersonalityEngine:
     """Enhanced personality system with dynamic traits"""
@@ -305,7 +627,6 @@ class LightweightResponseGenerator:
         try:
             api_key = os.getenv('OPENAI_API_KEY')
             if api_key and api_key != 'your_openai_api_key_here':
-                # Simple initialization without extra parameters
                 import openai as openai_module
                 self.openai_client = openai_module.OpenAI(api_key=api_key)
                 logger.info("OpenAI client initialized successfully")
@@ -319,6 +640,8 @@ class LightweightResponseGenerator:
         self.language_detector = LightweightLanguageDetector()
         self.sentiment_analyzer = LightweightSentimentAnalyzer()
         self.personality_engine = PersonalityEngine()
+        self.intent_classifier = DynamicIntentClassifier()  # ✅ NEW
+        self.kb_extractor = SmartKBExtractor()  # ✅ NEW
     
     async def generate_response(self, user_message: str, call_data: Dict, 
                               voice_settings: Dict, call_sid: str = None, 
@@ -366,9 +689,34 @@ class LightweightResponseGenerator:
             context = self.memory.get_context(call_sid) if call_sid else []
             logger.info(f"Conversation context: {len(context)} previous exchanges")
             
-            # Classify intent
-            intent = self._classify_intent(user_message)
-            logger.info(f"Detected intent: {intent}")
+            # ✅ NEW: Dynamic intent classification with context
+            intent_result = self.intent_classifier.classify_intent(user_message, context)
+            intent = intent_result['intent']
+            intent_confidence = intent_result['confidence']
+            
+            logger.info(f"Detected intent: {intent} (confidence: {intent_confidence:.2f})")
+            
+            # ✅ NEW: Handle goodbye intent FIRST
+            if intent == 'goodbye' and intent_confidence > 0.6:
+                logger.info("User said goodbye - closing conversation")
+                response_text = self._get_goodbye_response(language, voice_settings.get('personality', 'priyanshu'))
+                
+                if call_sid:
+                    self.state_manager.advance_stage(call_sid, force_stage='escalation')
+                
+                return {
+                    'ai_response': response_text,
+                    'detected_language': language,
+                    'language_confidence': lang_confidence,
+                    'sentiment': sentiment,
+                    'personality': voice_settings.get('personality', 'priyanshu'),
+                    'context_used': len(context) > 0,
+                    'conversation_stage': 'closed',
+                    'should_escalate': False,
+                    'intent': intent,
+                    'intent_confidence': intent_confidence,
+                    'goodbye_detected': True
+                }
             
             # Search knowledge base
             relevant_kb_info = self._search_knowledge_base(user_message, knowledge_base or [])
@@ -388,21 +736,22 @@ class LightweightResponseGenerator:
                     self.state_manager.advance_stage(call_sid, force_stage='escalation')
                 current_stage = 'escalation'
             
-            # NEW: Check if user is asking specific question about KB content
-            is_question = any(word in user_message.lower() for word in [
+            # ✅ FIXED: Check if user is asking specific question about KB content
+            is_question = intent == 'question' or any(word in user_message.lower() for word in [
                 'what', 'how', 'when', 'where', 'why', 'who', 'which',
                 'kya', 'kaise', 'kab', 'kahan', 'kyun', 'kaun', 'kaunsa',
                 'tell', 'explain', 'batao', 'samjhao', 'about', 'baare'
             ])
 
             if is_question and relevant_kb_info:
-                # Generate answer from KB
-                logger.info("User asked question - generating KB-based answer")
-                response_text = self._generate_kb_answer(
+                # ✅ FIXED: Generate smart answer from KB (no word-by-word reading)
+                logger.info("User asked question - generating smart KB-based answer")
+                response_text = self._generate_smart_kb_answer(
                     user_question=user_message,
                     kb_content=relevant_kb_info,
                     language=language,
-                    personality=personality
+                    personality=personality,
+                    intent=intent
                 )
             else:
                 # Use stage-based response
@@ -436,7 +785,9 @@ class LightweightResponseGenerator:
                 'context_used': len(context) > 0,
                 'conversation_stage': self.state_manager.get_current_stage(call_sid) if call_sid else current_stage,
                 'should_escalate': self.state_manager.should_escalate(call_sid) if call_sid else False,
-                'abusive_detected': False
+                'abusive_detected': False,
+                'intent': intent,
+                'intent_confidence': intent_confidence
             }
             
         except Exception as e:
@@ -446,211 +797,6 @@ class LightweightResponseGenerator:
                 voice_settings.get('personality', 'priyanshu'), 
                 language if 'language' in locals() else 'english'
             )
-    
-    async def _generate_llm_response(self, user_message: str, personality: str, 
-                                   language: str, sentiment: Dict, context: List, 
-                                   call_data: Dict, knowledge_base: List, abuse_detection: Dict = None) -> str:
-        """Generate response using OpenAI GPT with fallback to templates"""
-        # Check if OpenAI API key is available
-        if not self.openai_client:
-            logger.info("OpenAI not available, using enhanced template responses")
-            return self._get_enhanced_template_response(user_message, personality, language, call_data, sentiment, context, knowledge_base, abuse_detection)
-        
-        # Handle abusive content
-        if abuse_detection and abuse_detection.get('is_abusive'):
-            return self._get_abusive_response(personality, language)
-        
-        try:
-            # Build context-aware prompt
-            system_prompt = self.personality_engine.get_personality_prompt(personality, language, sentiment)
-            
-            # Add business context
-            company_name = call_data.get('companyName', 'our company')
-            information = call_data.get('information', '')
-            
-            # Add knowledge base context if available
-            kb_context = ""
-            if knowledge_base:
-                kb_content = "\n".join([f"- {kb.get('title', '')}: {kb.get('content', '')[:200]}..." for kb in knowledge_base[:3]])
-                kb_context = f"\n\nCompany Knowledge Base:\n{kb_content}"
-            
-            context_prompt = f"""
-Business Context:
-- Company: {company_name}
-- Service Info: {information}{kb_context}
-- This is a B2B voice call for cloud services
-
-Previous conversation: {json.dumps(context[-2:]) if context else 'None'}
-
-User said: "{user_message}"
-
-Respond as {personality} in {language}. Focus on:
-1. Use knowledge base info to answer specific questions
-2. Addressing user's specific question/concern
-3. Mentioning relevant services from knowledge base
-4. Offering to connect with technical team if appropriate
-5. Matching user's emotional tone
-"""
-            
-            response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": context_prompt}
-                ],
-                max_tokens=100,
-                temperature=0.7
-            )
-            
-            return response.choices[0].message.content.strip()
-            
-        except Exception as e:
-            logger.error(f"OpenAI generation failed: {e}")
-            return self._get_enhanced_template_response(user_message, personality, language, call_data, sentiment, context, knowledge_base)
-    
-    def _get_stage_based_response(self, stage: str, intent: str, language: str, 
-                                  personality: str, kb_info: str, 
-                                  company_name: str, sentiment: Dict, 
-                                  user_message: str) -> str:
-        """Generate response based on conversation stage"""
-        
-        logger.info(f"Generating stage-based response: stage={stage}, intent={intent}, language={language}")
-        
-        # Stage-specific response templates
-        if stage == 'greeting':
-            if language == 'hindi':
-                return f"Namaste! Main {personality} bol raha hun {company_name} se. Aap kaise hain?"
-            elif language == 'hinglish':
-                return f"Hello! Main {personality} hun {company_name} se. Aap kaise hain? How can I help you?"
-            else:
-                return f"Hello! I'm {personality} from {company_name}. How are you doing today?"
-        
-        elif stage == 'introduction':
-            if kb_info:
-                if language == 'hindi':
-                    return f"Dhanyawad! Main aapko detail mein batata hun. {kb_info[:800]}. Kya aap is baare mein aur jaanna chahenge?"
-                elif language == 'hinglish':
-                    return f"Thank you! Let me explain in detail. {kb_info[:800]}. Aap interested hain to know more?"
-                else:
-                    return f"Great! Let me share the details. {kb_info[:800]}. Would you like to hear more about this?"
-            else:
-                if language == 'hindi':
-                    return f"{company_name} comprehensive business solutions provide karta hai. Aapko kis service ke baare mein jaanna hai?"
-                else:
-                    return f"{company_name} provides comprehensive business solutions. What specific service interests you?"
-        
-        elif stage == 'needs_assessment':
-            # Ask probing questions based on intent
-            if intent == 'pricing':
-                if language == 'hindi':
-                    return "Pricing aapke requirements par depend karti hai. Aap kitne users ke liye solution chahte hain?"
-                elif language == 'hinglish':
-                    return "Pricing depends on your requirements. Kitne users ke liye chahiye?"
-                else:
-                    return "Our pricing depends on your requirements. How many users would you need this for?"
-            elif intent == 'services':
-                if language == 'hindi':
-                    return f"Bilkul! Hamare paas multiple services hain. {kb_info[:800] if kb_info else 'Cloud, hosting, aur support services'}. Aapki company ki specific need kya hai?"
-                elif language == 'hinglish':
-                    return f"Absolutely! We offer {kb_info[:800] if kb_info else 'cloud, hosting, support services'}. Aapki specific need kya hai?"
-                else:
-                    return f"Absolutely! We offer {kb_info[:800] if kb_info else 'cloud, hosting, and support services'}. What's your company's specific need?"
-        
-        elif stage == 'solution_pitch':
-            if kb_info:
-                if language == 'hindi':
-                    return f"Perfect! Hamare solution mein ye features hain: {kb_info[:800]}. Ye aapki needs match kar raha hai. Kya aap demo dekhna chahenge?"
-                elif language == 'hinglish':
-                    return f"Perfect! Our solution includes: {kb_info[:800]}. This matches your needs. Demo dekhna chahenge?"
-                else:
-                    return f"Perfect! Our solution includes: {kb_info[:800]}. This aligns well with your needs. Would you like to see a demo?"
-            else:
-                if language == 'hindi':
-                    return f"Hamare solution se aap 30-40% cost save kar sakte hain aur 24/7 support milega. Kya ye interesting lagta hai?"
-                elif language == 'hinglish':
-                    return "Our solution saves 30-40% cost with 24/7 support. Interesting lagta hai?"
-                else:
-                    return "Our solution can save you 30-40% on costs with 24/7 support included. Does this sound interesting?"
-        
-        elif stage == 'objection_handling':
-            if sentiment['label'] == 'negative':
-                if language == 'hindi':
-                    return "Main samajh sakta hun aapki concern. Kya main aapko specific details share kar sakta hun jo aapki pareshani solve karenge?"
-                elif language == 'hinglish':
-                    return "I understand your concern. Kya main specific details share kar sakta hun?"
-                else:
-                    return "I understand your concern. Can I share specific details that address your worry?"
-            else:
-                if language == 'hindi':
-                    return "Kya aapko koi aur question hai? Ya koi specific concern jo discuss karna chahenge?"
-                elif language == 'hinglish':
-                    return "Any other questions? Koi specific concern hai?"
-                else:
-                    return "Do you have any other questions or specific concerns you'd like to discuss?"
-        
-        elif stage == 'closing':
-            if 'yes' in user_message.lower() or 'haan' in user_message.lower() or 'interested' in user_message.lower():
-                if language == 'hindi':
-                    return "Bahut accha! Main aapko hamare technical specialist se connect kar raha hun jo aapko detailed discussion provide karenge. Ek minute rukiye."
-                elif language == 'hinglish':
-                    return "Excellent! Let me connect you with our specialist. Ek minute please."
-                else:
-                    return "Excellent! Let me connect you with our technical specialist who can provide a detailed discussion. Please hold for a moment."
-            else:
-                if language == 'hindi':
-                    return "Koi baat nahi. Kya aap chahenge ki main apni team se aapko call back karwa dun later?"
-                elif language == 'hinglish':
-                    return "No problem. Kya aap callback chahenge?"
-                else:
-                    return "No problem. Would you like our team to call you back later?"
-        
-        elif stage == 'escalation':
-            if language == 'hindi':
-                return "Main aapko abhi hamare senior consultant se connect kar raha hun. Dhanyawad aapki patience ke liye!"
-            elif language == 'hinglish':
-                return "Connecting you with our consultant now. Thank you for patience!"
-            else:
-                return "I'm connecting you with our senior consultant now. Thank you for your patience!"
-        
-        # Fallback
-        if language == 'hindi':
-            return "Main samajh gaya. Aur kya jaanna chahenge aap?"
-        elif language == 'hinglish':
-            return "I understand. Aur kya details chahiye?"
-        else:
-            return "I understand. Can you tell me more about what you're looking for?"
-
-    def _get_enhanced_template_response(self, user_message: str, personality: str, 
-                                      language: str, call_data: Dict, sentiment: Dict, context: List, knowledge_base: List = None, abuse_detection: Dict = None) -> str:
-        """Enhanced template responses with sentiment, context awareness AND knowledge base integration"""
-        # Handle abusive content first
-        if abuse_detection and abuse_detection.get('is_abusive'):
-            return self._get_abusive_response(personality, language)
-        
-        company_name = call_data.get('companyName', 'our company')
-        
-        # Classify intent
-        intent = self._classify_intent(user_message)
-        
-        # Search knowledge base for relevant content
-        relevant_kb_info = self._search_knowledge_base(user_message, knowledge_base or [])
-        
-        # Get base templates with knowledge base integration
-        response = self._get_kb_enhanced_response(personality, language, intent, company_name, relevant_kb_info, sentiment)
-        
-        # Adjust for sentiment
-        if sentiment['label'] == 'negative' and sentiment['score'] > 0.7:
-            if language == 'hindi':
-                response = f"Main samajh sakta hun aapki pareshani. {response}"
-            else:
-                response = f"I understand your concerns. {response}"
-        elif sentiment['label'] == 'positive' and sentiment['score'] > 0.7:
-            if language == 'hindi':
-                response = f"Bahut khushi ki baat hai! {response}"
-            else:
-                response = f"That's wonderful to hear! {response}"
-        
-        return response
     
     def _search_knowledge_base(self, query: str, knowledge_base: List) -> str:
         """Enhanced semantic knowledge base search with better matching"""
@@ -718,7 +864,7 @@ Respond as {personality} in {language}. Focus on:
             logger.info("No relevant KB content found for query")
             return ""
         
-        # CRITICAL FIX: Return MORE content (up to 2000 chars from top 3 items)
+        # Return MORE content (up to 2000 chars from top 3 items)
         relevant_info = []
         total_chars = 0
         max_total_chars = 2000
@@ -754,36 +900,48 @@ Respond as {personality} in {language}. Focus on:
         
         return result
     
-    def _generate_kb_answer(self, user_question: str, kb_content: str, language: str, personality: str) -> str:
-        """Generate natural conversational answer from KB content"""
+    def _generate_smart_kb_answer(self, user_question: str, kb_content: str, 
+                                  language: str, personality: str, intent: str) -> str:
+        """
+        ✅ FIXED: Generate smart answer from KB - extracts relevant info, NO word-by-word reading
+        """
+        if not kb_content or len(kb_content.strip()) < 20:
+            return self._get_no_kb_response(language, personality)
         
-        if not kb_content:
-            # No KB content found
-            responses = {
-                'hindi': "Mujhe is baare mein zyada jaankari nahi hai. Main aapko apne team se connect kar deta hun jo detail mein bata sakenge.",
-                'hinglish': "I don't have detailed info on this. Let me connect you with our team jo detail mein explain kar sakenge.",
-                'english': "I don't have detailed information on this topic. Let me connect you with our team who can explain in detail."
-            }
-            return responses.get(language, responses['english'])
+        # ✅ NEW: Extract relevant sentences instead of dumping entire content
+        relevant_answer = self.kb_extractor.extract_relevant_answer(
+            question=user_question,
+            kb_content=kb_content,
+            max_sentences=3
+        )
         
-        # Extract key information from KB
-        # For now, just return a natural response with KB content
-        # You can enhance this with actual LLM later
+        if not relevant_answer:
+            return self._get_no_kb_response(language, personality)
         
-        question_lower = user_question.lower()
+        # Get personality-based intro
+        intro = self._get_personality_intro(personality, language)
         
-        # Determine question type
-        is_what_question = any(word in question_lower for word in ['what', 'kya', 'kaunsa'])
-        is_how_question = any(word in question_lower for word in ['how', 'kaise', 'kitna'])
-        is_when_question = any(word in question_lower for word in ['when', 'kab'])
-        is_why_question = any(word in question_lower for word in ['why', 'kyun', 'kyu'])
+        # Build natural conversational response
+        if language == 'hindi':
+            follow_up = " Kya aap is baare mein aur kuch jaanna chahenge?"
+        elif language == 'hinglish':
+            follow_up = " Anything else aap jaanna chahenge?"
+        else:
+            follow_up = " Would you like to know more about this?"
         
-        # Personality-based intros
+        # Combine intro + relevant answer + follow-up
+        response = f"{intro}{relevant_answer}{follow_up}"
+        
+        logger.info(f"Smart KB answer generated: {response[:100]}...")
+        return response
+    
+    def _get_personality_intro(self, personality: str, language: str) -> str:
+        """Get personality-based introduction for answers"""
         intros = {
             'priyanshu': {
                 'hindi': "Ji haan, main aapko batata hun. ",
                 'hinglish': "Sure, let me explain. ",
-                'english': "Absolutely! Let me explain. "
+                'english': "Absolutely! "
             },
             'tanmay': {
                 'hindi': "Bilkul! Ye suniye! ",
@@ -791,139 +949,147 @@ Respond as {personality} in {language}. Focus on:
                 'english': "Totally! Check this out! "
             },
             'ekta': {
-                'hindi': "Avashya. Main aapko vistar se samjhati hun. ",
-                'hinglish': "Certainly. I'll explain in detail. ",
-                'english': "Certainly. I'll explain this thoroughly. "
+                'hindi': "Avashya. ",
+                'hinglish': "Certainly. ",
+                'english': "Certainly. "
             },
             'priyanka': {
-                'hindi': "Technical roop se dekhein toh, ",
-                'hinglish': "From a technical perspective, ",
-                'english': "From a technical standpoint, "
+                'hindi': "Technical details hain: ",
+                'hinglish': "From a technical standpoint, ",
+                'english': "Technically speaking, "
             }
         }
         
-        intro = intros.get(personality, intros['priyanshu']).get(language, intros['priyanshu']['english'])
-        
-        # Format response based on KB content length
-        if len(kb_content) > 1500:
-            # Long content - summarize key points
-            kb_summary = kb_content[:1200]
-            response = f"{intro}{kb_summary}... Kya aap is baare mein koi specific detail jaanna chahenge?"
-        else:
-            # Short content - use as is
-            response = f"{intro}{kb_content}"
-        
-        return response
+        return intros.get(personality, intros['priyanshu']).get(language, intros['priyanshu']['english'])
     
-    def _get_kb_enhanced_response(self, personality: str, language: str, intent: str, 
-                                company_name: str, kb_info: str, sentiment: Dict) -> str:
-        """Generate response prioritizing knowledge base content over business templates"""
-        
-        # PRIORITY 1: Use knowledge base content if available and relevant
-        if kb_info and len(kb_info.strip()) > 20:  # Ensure meaningful content
-            # Personality-based response templates with ACTUAL knowledge base content
-            if language in ['hindi', 'hinglish']:
-                templates = {
-                    'priyanshu': f"Hamare knowledge base ke anusaar: {kb_info[:250]}... Kya aap chahenge ki main aapko technical team se connect kar dun more details ke liye?",
-                    'tanmay': f"Wow! Hamare knowledge base mein ye amazing info hai: {kb_info[:250]}... Ye bahut exciting hai! More details ke liye team se connect karna chahenge?",
-                    'ekta': f"Hamare official documentation ke anusaar: {kb_info[:250]}... Kya main respectfully comprehensive information ke liye specialists arrange kar sakti hun?",
-                    'priyanka': f"Technical perspective se, hamare documentation shows: {kb_info[:250]}... Detailed specifications ke liye solutions architect se connect karna chahenge?"
-                }
-            else:  # English
-                templates = {
-                    'priyanshu': f"Based on our knowledge base: {kb_info[:250]}... Would you like me to connect you with our technical team for more detailed information?",
-                    'tanmay': f"Oh wow! Here's what our knowledge base says: {kb_info[:250]}... This is so exciting! Want to get connected with our team for more details?",
-                    'ekta': f"According to our official documentation: {kb_info[:250]}... May I respectfully arrange a consultation with our specialists for comprehensive information?",
-                    'priyanka': f"From a technical perspective, our documentation shows: {kb_info[:250]}... Shall I connect you with our solutions architect for detailed specifications?"
-                }
-            
-            return templates.get(personality, templates['priyanshu'])
-        
-        # PRIORITY 2: Fallback to generic business responses only if NO KB content
-        if language in ['hindi', 'hinglish']:
-            templates = {
-                'priyanshu': f"Aapke sawal ke liye dhanyawad. {company_name} comprehensive business solutions provide karta hai. Main aapko technical team se connect karne mein madad kar sakta hun.",
-                'tanmay': f"Wow, bahut accha question! {company_name} ke paas amazing business solutions hain! Kya main aapko hamare awesome team se connect kar dun?",
-                'ekta': f"Aapki inquiry appreciate karti hun. {company_name} comprehensive business solutions provide karta hai. Kya main specialists ke saath consultation arrange kar sakti hun?",
-                'priyanka': f"Technical perspective se, {company_name} comprehensive business solutions implement karta hai. Solutions architect se connect karna chahenge?"
-            }
-        else:  # English
-            templates = {
-                'priyanshu': f"Thank you for your inquiry. {company_name} offers comprehensive business solutions. I'd be happy to connect you with our technical team for detailed information.",
-                'tanmay': f"Oh wow, great question! {company_name} has some amazing business solutions! This is so exciting! Want me to get you connected with our awesome team?",
-                'ekta': f"I appreciate your inquiry. {company_name} provides comprehensive business solutions. May I respectfully arrange a consultation with our distinguished specialists?",
-                'priyanka': f"From a technical perspective, {company_name} implements comprehensive business solutions. Shall I connect you with our solutions architect for detailed technical specifications?"
-            }
-        
-        return templates.get(personality, templates['priyanshu'])
+    def _get_no_kb_response(self, language: str, personality: str) -> str:
+        """Response when no KB content is available"""
+        responses = {
+            'hindi': "Mujhe is specific question ka answer nahi pata. Main aapko apne specialist se connect kar deta hun jo detail mein bata sakenge.",
+            'hinglish': "I don't have specific details on this. Let me connect you with our specialist jo explain kar sakenge.",
+            'english': "I don't have specific information on that. Let me connect you with our specialist who can help."
+        }
+        return responses.get(language, responses['english'])
     
-    def _classify_intent(self, user_message: str) -> str:
-        """Dynamic intent classification with scoring system"""
-        msg = user_message.lower()
-        
-        # Enhanced intent keywords with weights
-        intent_patterns = {
-            'services': {
-                'keywords': ['service', 'offer', 'provide', 'do', 'kya', 'seva', 'product', 'solution', 'help', 'support', 'feature', 'capability'],
-                'phrases': ['what do you', 'kya aap', 'tell me about', 'batao', 'explain', 'samjhao'],
-                'weight': 1.0
+    def _get_goodbye_response(self, language: str, personality: str) -> str:
+        """✅ NEW: Generate goodbye response based on language and personality"""
+        goodbyes = {
+            'priyanshu': {
+                'hindi': "Dhanyawad aapka! Aapka din shubh rahe. Agar kabhi bhi madad chahiye, please call karein!",
+                'hinglish': "Thank you so much! Have a great day. Agar kabhi help chahiye, feel free to call!",
+                'english': "Thank you for your time! Have a wonderful day. Feel free to reach out anytime!"
             },
-            'pricing': {
-                'keywords': ['price', 'cost', 'rate', 'fee', 'paisa', 'kitna', 'amount', 'charge', 'expensive', 'cheap', 'budget', 'plan'],
-                'phrases': ['how much', 'kitna paisa', 'cost me', 'price for', 'rate card'],
-                'weight': 1.2
+            'tanmay': {
+                'hindi': "Bahut badiya baat ki aapne! Aapka din amazing rahe! Bye bye!",
+                'hinglish': "Great talking to you! Have an amazing day! Bye!",
+                'english': "It was awesome chatting with you! Have an amazing day! Bye!"
             },
-            'interested': {
-                'keywords': ['interested', 'yes', 'accha', 'haan', 'good', 'great', 'amazing', 'perfect', 'excellent', 'wonderful'],
-                'phrases': ['sounds good', 'accha lagta', 'i like', 'pasand hai'],
-                'weight': 0.8
+            'ekta': {
+                'hindi': "Aapke samay ke liye bahut bahut dhanyawad. Aapka din mangalmay ho.",
+                'hinglish': "Thank you very much for your time. Aapka din shubh rahe.",
+                'english': "Thank you very much for your valuable time. Wishing you a pleasant day."
             },
-            'contact': {
-                'keywords': ['contact', 'phone', 'email', 'address', 'sampark', 'call', 'reach', 'connect', 'meeting'],
-                'phrases': ['get in touch', 'sampark karna', 'call me', 'contact details'],
-                'weight': 1.1
-            },
-            'complaint': {
-                'keywords': ['problem', 'issue', 'complaint', 'wrong', 'error', 'galat', 'pareshani', 'dikkat', 'bad'],
-                'phrases': ['not working', 'kaam nahi', 'having trouble', 'problem hai'],
-                'weight': 1.3
-            },
-            'demo': {
-                'keywords': ['demo', 'show', 'example', 'trial', 'test', 'dikhao', 'example', 'sample'],
-                'phrases': ['show me', 'dikhao mujhe', 'can i see', 'demo chahiye'],
-                'weight': 1.0
+            'priyanka': {
+                'hindi': "Dhanyawad. Agar technical assistance chahiye toh please contact karein.",
+                'hinglish': "Thank you. If you need technical assistance, please reach out.",
+                'english': "Thank you. Should you require technical assistance, please don't hesitate to contact us."
             }
         }
         
-        intent_scores = {}
+        return goodbyes.get(personality, goodbyes['priyanshu']).get(language, goodbyes['priyanshu']['english'])
+    
+    def _get_stage_based_response(self, stage: str, intent: str, language: str, 
+                                  personality: str, kb_info: str, 
+                                  company_name: str, sentiment: Dict, 
+                                  user_message: str) -> str:
+        """Generate response based on conversation stage"""
         
-        # Calculate scores for each intent
-        for intent, patterns in intent_patterns.items():
-            score = 0
-            
-            # Check keywords
-            for keyword in patterns['keywords']:
-                if keyword in msg:
-                    score += patterns['weight']
-            
-            # Check phrases (higher weight)
-            for phrase in patterns['phrases']:
-                if phrase in msg:
-                    score += patterns['weight'] * 1.5
-            
-            intent_scores[intent] = score
+        logger.info(f"Generating stage-based response: stage={stage}, intent={intent}, language={language}")
         
-        # Return intent with highest score, or 'interested' as default
-        if max(intent_scores.values()) > 0:
-            return max(intent_scores, key=intent_scores.get)
-        else:
-            return 'interested'
+        # Stage-specific response templates
+        if stage == 'greeting':
+            if language == 'hindi':
+                return f"Namaste! Main {personality} bol raha hun {company_name} se. Aap kaise hain?"
+            elif language == 'hinglish':
+                return f"Hello! Main {personality} hun {company_name} se. Aap kaise hain? How can I help you?"
+            else:
+                return f"Hello! I'm {personality} from {company_name}. How are you doing today?"
+        
+        elif stage == 'introduction':
+            if kb_info:
+                # ✅ Use smart extraction instead of dumping
+                smart_info = self.kb_extractor.extract_relevant_answer(user_message, kb_info, 2)
+                if language == 'hindi':
+                    return f"Dhanyawad! Main aapko batata hun: {smart_info[:400]} Aur jaanna chahenge?"
+                elif language == 'hinglish':
+                    return f"Thank you! Here's what we offer: {smart_info[:400]} Want to know more?"
+                else:
+                    return f"Great! Let me share: {smart_info[:400]} Would you like more details?"
+            else:
+                if language == 'hindi':
+                    return f"{company_name} comprehensive solutions provide karta hai. Aapko kis service ke baare mein jaanna hai?"
+                else:
+                    return f"{company_name} provides comprehensive solutions. What would you like to know?"
+        
+        elif stage == 'needs_assessment':
+            if intent == 'pricing':
+                if language == 'hindi':
+                    return "Pricing aapke requirements par depend karti hai. Aap kitne users ke liye solution chahte hain?"
+                else:
+                    return "Our pricing depends on your requirements. How many users would you need this for?"
+            elif intent == 'services':
+                if kb_info:
+                    smart_info = self.kb_extractor.extract_relevant_answer(user_message, kb_info, 2)
+                    if language == 'hindi':
+                        return f"Bilkul! {smart_info[:400]} Aapki specific need kya hai?"
+                    else:
+                        return f"Absolutely! {smart_info[:400]} What's your specific need?"
+                else:
+                    return "We offer cloud, hosting, and support services. What interests you?"
+        
+        elif stage == 'solution_pitch':
+            if kb_info:
+                smart_info = self.kb_extractor.extract_relevant_answer(user_message, kb_info, 3)
+                if language == 'hindi':
+                    return f"Perfect! {smart_info[:500]} Kya aap demo dekhna chahenge?"
+                else:
+                    return f"Perfect! {smart_info[:500]} Would you like a demo?"
+            else:
+                return "Our solution can save you 30-40% on costs. Interested in learning more?"
+        
+        elif stage == 'objection_handling':
+            if sentiment['label'] == 'negative':
+                if language == 'hindi':
+                    return "Main samajh sakta hun. Kya main specific details share kar sakta hun?"
+                else:
+                    return "I understand your concern. Can I share specific details?"
+            else:
+                return "Do you have any other questions?"
+        
+        elif stage == 'closing':
+            if 'yes' in user_message.lower() or 'haan' in user_message.lower():
+                if language == 'hindi':
+                    return "Bahut accha! Main aapko specialist se connect kar raha hun."
+                else:
+                    return "Excellent! Let me connect you with our specialist."
+            else:
+                return "No problem. Would you like us to call you back later?"
+        
+        elif stage == 'escalation':
+            if language == 'hindi':
+                return "Main aapko abhi consultant se connect kar raha hun. Dhanyawad!"
+            else:
+                return "Connecting you with our consultant now. Thank you!"
+        
+        # Fallback
+        return "I understand. Can you tell me more about what you're looking for?"
     
     def _get_abusive_response(self, personality: str, language: str) -> str:
-        """Generate appropriate response for abusive content"""
+        """✅ FIXED: Firm but polite response for abusive content"""
         responses = {
-            'english': "I understand you may be frustrated, but I'd appreciate if we could keep our conversation respectful. How can I help you today?",
-            'hindi': "Main samajh sakta hun aap pareshaan ho sakte hain, lekin main appreciate karunga agar hum apni conversation respectful rakh saken. Aaj main aapki kaise madad kar sakta hun?"
+            'english': "I'm here to help, but I need our conversation to be respectful. If you'd like to continue professionally, I'm happy to assist. Otherwise, I'll have to end this call.",
+            'hindi': "Main aapki madad karna chahta hun, lekin hamari conversation respectful honi chahiye. Agar aap professionally baat karna chahte hain, main khush hun. Warna mujhe ye call end karni padegi.",
+            'hinglish': "Main help karna chahta hun, but conversation respectful honi chahiye. If you want to continue professionally, I'm here. Otherwise I'll have to end the call."
         }
         return responses.get(language, responses['english'])
     
@@ -931,7 +1097,7 @@ Respond as {personality} in {language}. Focus on:
         """Emergency fallback response"""
         fallback_text = "Thank you for your time. Our team will be happy to assist you further."
         if language == 'hindi':
-            fallback_text = "Aapke samay ke liye dhanyawad. Hamari team aapki aur madad karne mein khush hogi."
+            fallback_text = "Aapke samay ke liye dhanyawad. Hamari team aapki madad karegi."
         
         return {
             'ai_response': fallback_text,

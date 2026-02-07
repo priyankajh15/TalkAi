@@ -33,7 +33,7 @@ const Landing = () => {
         zIndex: 100
       }}>
         <div style={{ fontSize: 'clamp(20px, 4vw, 24px)', fontWeight: '700' }}>TalkAi</div>
-        
+
         {/* Mobile Menu Button */}
         {isMobile && (
           <Button
@@ -50,7 +50,7 @@ const Landing = () => {
             <FontAwesomeIcon icon={mobileMenuOpen ? faTimes : faBars} />
           </Button>
         )}
-        
+
         {/* Desktop Navigation */}
         {!isMobile && (
           <nav style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
@@ -70,7 +70,7 @@ const Landing = () => {
             )}
           </nav>
         )}
-        
+
         {/* Mobile Navigation Menu */}
         {isMobile && mobileMenuOpen && (
           <div style={{
@@ -90,17 +90,17 @@ const Landing = () => {
             <a href="#features" style={{ color: '#999', textDecoration: 'none', padding: '10px 0' }} onClick={() => setMobileMenuOpen(false)}>Features</a>
             <a href="#use-cases" style={{ color: '#999', textDecoration: 'none', padding: '10px 0' }} onClick={() => setMobileMenuOpen(false)}>Use Cases</a>
             <a href="#faq" style={{ color: '#999', textDecoration: 'none', padding: '10px 0' }} onClick={() => setMobileMenuOpen(false)}>FAQ</a>
-              {user ? (
-                <>
-                  <Button variant="secondary" style={{ marginTop: '10px' }} onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}>Dashboard</Button>
-                  <Button onClick={(e) => { e.preventDefault(); logout(); setMobileMenuOpen(false); }}>Logout</Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="secondary" style={{ marginTop: '10px' }} onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}>Sign In</Button>
-                  <Button onClick={() => { navigate('/signup'); setMobileMenuOpen(false); }}>Get Started</Button>
-                </>
-              )}
+            {user ? (
+              <>
+                <Button variant="secondary" style={{ marginTop: '10px' }} onClick={() => { navigate('/dashboard'); setMobileMenuOpen(false); }}>Dashboard</Button>
+                <Button onClick={(e) => { e.preventDefault(); logout(); setMobileMenuOpen(false); }}>Logout</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" style={{ marginTop: '10px' }} onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}>Sign In</Button>
+                <Button onClick={() => { navigate('/signup'); setMobileMenuOpen(false); }}>Get Started</Button>
+              </>
+            )}
           </div>
         )}
       </header>
@@ -176,7 +176,7 @@ const Landing = () => {
           }}>
             From customer support to sales automation, TalkAi adapts to your specific business requirements.
           </p>
-          
+
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
@@ -287,12 +287,12 @@ const Landing = () => {
         }}>
           Powerful features designed for enterprise deployment and scalability.
         </p>
-        
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-            gap: 'clamp(20px, 4vw, 25px)'
-          }}>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          gap: 'clamp(20px, 4vw, 25px)'
+        }}>
           <Card hover style={{ padding: 'clamp(25px, 5vw, 40px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <FontAwesomeIcon icon={faShield} style={{ marginRight: '12px', fontSize: '18px', color: '#667eea' }} />
@@ -379,7 +379,7 @@ const Landing = () => {
           }}>
             Get your AI communication system running in minutes, not months.
           </p>
-          
+
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -463,10 +463,10 @@ const Landing = () => {
           }}>
             Frequently Asked Questions
           </h2>
-          
+
           <div style={{ display: 'grid', gap: '20px' }}>
             <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
-              <div 
+              <div
                 onClick={() => toggleFaq(0)}
                 style={{
                   padding: '30px',
@@ -492,7 +492,7 @@ const Landing = () => {
             </div>
 
             <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
-              <div 
+              <div
                 onClick={() => toggleFaq(1)}
                 style={{
                   padding: '30px',
@@ -518,7 +518,7 @@ const Landing = () => {
             </div>
 
             <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
-              <div 
+              <div
                 onClick={() => toggleFaq(2)}
                 style={{
                   padding: '30px',
@@ -544,7 +544,7 @@ const Landing = () => {
             </div>
 
             <div className="glass" style={{ padding: '0', overflow: 'hidden' }}>
-              <div 
+              <div
                 onClick={() => toggleFaq(3)}
                 style={{
                   padding: '30px',
@@ -626,7 +626,7 @@ const Landing = () => {
                 Enterprise AI Communication Platform for modern businesses.
               </p>
             </div>
-            
+
             {/* Horizontal Navigation Links */}
             <div style={{
               display: 'flex',
@@ -634,8 +634,6 @@ const Landing = () => {
               gap: 'clamp(20px, 4vw, 30px)',
               alignItems: 'center'
             }}>
-              <a href="#features" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Features</a>
-              <a href="#use-cases" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Use Cases</a>
               <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>About</a>
               <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Contact</a>
               <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Support</a>
@@ -644,7 +642,7 @@ const Landing = () => {
               <a href="#" style={{ color: '#999', textDecoration: 'none', fontSize: 'clamp(13px, 2.5vw, 14px)' }}>Security</a>
             </div>
           </div>
-          
+
           <div style={{
             borderTop: '1px solid rgba(255,255,255,0.1)',
             paddingTop: 'clamp(20px, 4vw, 30px)',
