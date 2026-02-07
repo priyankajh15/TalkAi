@@ -616,16 +616,86 @@ const CallLogs = () => {
 
             {selectedCall.transcript && (
               <div style={{ marginBottom: '20px' }}>
-                <h3 style={{ color: '#fff', marginBottom: '10px' }}>Transcript</h3>
+                <h3 style={{ color: '#fff', marginBottom: '10px' }}>Conversation Transcript</h3>
                 <div style={{
                   backgroundColor: 'rgba(255,255,255,0.05)',
                   padding: '15px',
                   borderRadius: '8px',
-                  color: '#e5e7eb',
-                  fontSize: '14px',
-                  lineHeight: '1.5'
+                  maxHeight: '400px',
+                  overflowY: 'auto'
                 }}>
-                  {selectedCall.transcript}
+                  {(() => {
+                    try {
+                      const transcript = JSON.parse(selectedCall.transcript);
+                      return transcript.map((exchange, index) => (
+                        <div key={index} style={{ marginBottom: '20px' }}>
+                          {/* User Message */}
+                          <div style={{ marginBottom: '10px' }}>
+                            <div style={{ 
+                              color: '#60a5fa', 
+                              fontSize: '12px', 
+                              fontWeight: '600',
+                              marginBottom: '4px'
+                            }}>
+                              {exchange.userSpeaker}
+                            </div>
+                            <div style={{
+                              backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                              padding: '10px',
+                              borderRadius: '8px',
+                              color: '#e5e7eb',
+                              fontSize: '14px',
+                              lineHeight: '1.5'
+                            }}>
+                              {exchange.userMessage}
+                            </div>
+                            <div style={{ 
+                              color: '#666', 
+                              fontSize: '11px', 
+                              marginTop: '4px'
+                            }}>
+                              {new Date(exchange.timestamp).toLocaleTimeString()}
+                            </div>
+                          </div>
+                          
+                          {/* AI Response */}
+                          <div>
+                            <div style={{ 
+                              color: '#4ade80', 
+                              fontSize: '12px', 
+                              fontWeight: '600',
+                              marginBottom: '4px'
+                            }}>
+                              {exchange.aiSpeaker}
+                            </div>
+                            <div style={{
+                              backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                              padding: '10px',
+                              borderRadius: '8px',
+                              color: '#e5e7eb',
+                              fontSize: '14px',
+                              lineHeight: '1.5'
+                            }}>
+                              {exchange.aiResponse}
+                            </div>
+                            <div style={{ 
+                              color: '#666', 
+                              fontSize: '11px', 
+                              marginTop: '4px'
+                            }}>
+                              {new Date(exchange.timestamp).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    } catch (e) {
+                      return (
+                        <div style={{ color: '#999', fontSize: '14px' }}>
+                          {selectedCall.transcript}
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
             )}

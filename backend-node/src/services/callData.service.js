@@ -36,16 +36,23 @@ class CallDataService {
   }
 
   /**
-   * Add conversation exchange to history
+   * Add conversation exchange to history with speaker names
    */
   addConversationExchange(callSid, userMessage, aiResponse, language) {
     const callData = this.activeCalls.get(callSid);
     if (callData) {
+      // Get speaker names
+      const receiverName = callData.receiverName || 'Customer';
+      const botPersonality = callData.voiceSettings?.personality || 'priyanshu';
+      const botName = botPersonality.charAt(0).toUpperCase() + botPersonality.slice(1);
+      
       callData.conversationHistory.push({
-        user: userMessage,
-        ai: aiResponse,
+        userSpeaker: receiverName,
+        userMessage: userMessage,
+        aiSpeaker: botName,
+        aiResponse: aiResponse,
         language: language,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
       callData.responseCount++;
       
@@ -56,6 +63,14 @@ class CallDataService {
         callData.conversationHistory = callData.conversationHistory.slice(-10);
       }
     }
+  }
+
+  /**
+   * Get conversation history for saving to database
+   */
+  getConversationHistory(callSid) {
+    const data = this.activeCalls.get(callSid);
+    return data ? data.conversationHistory : [];
   }
 
   /**

@@ -636,7 +636,10 @@ exports.handleCallStatus = async (req, res) => {
     console.log(`Call ${CallSid} status: ${CallStatus}`);
     
     if (CallStatus === 'completed' || CallStatus === 'failed' || CallStatus === 'no-answer') {
-      // Update call log with final status and recording
+      // Get conversation history before cleanup
+      const conversationHistory = callDataService.getConversationHistory(CallSid);
+      
+      // Update call log with final status, recording, and transcript
       try {
         const updateData = { 
           endTime: new Date(),
@@ -649,6 +652,12 @@ exports.handleCallStatus = async (req, res) => {
           updateData.recordingUrl = RecordingUrl;
           updateData.recordingSid = RecordingSid;
           console.log(`Recording URL saved for ${CallSid}: ${RecordingUrl}`);
+        }
+        
+        // Add transcript if conversation happened
+        if (conversationHistory && conversationHistory.length > 0) {
+          updateData.transcript = JSON.stringify(conversationHistory);
+          console.log(`Transcript saved for ${CallSid}: ${conversationHistory.length} exchanges`);
         }
         
         await CallLog.findOneAndUpdate(
