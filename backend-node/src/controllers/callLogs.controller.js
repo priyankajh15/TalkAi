@@ -118,7 +118,12 @@ const getRecording = async (req, res) => {
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     
     try {
-      const response = await axios.get(callLog.recordingUrl, {
+      // Add .wav extension to Twilio recording URL
+      const recordingUrlWithFormat = callLog.recordingUrl.includes('.wav') 
+        ? callLog.recordingUrl 
+        : `${callLog.recordingUrl}.wav`;
+      
+      const response = await axios.get(recordingUrlWithFormat, {
         auth: {
           username: accountSid,
           password: authToken

@@ -447,7 +447,6 @@ const CallLogs = () => {
                     borderBottom: '1px solid rgba(255,255,255,0.05)',
                     fontSize: '14px',
                     alignItems: 'center',
-                    cursor: 'pointer',
                     transition: 'background-color 0.2s ease'
                   }}
                     onMouseEnter={(e) => {
@@ -456,7 +455,7 @@ const CallLogs = () => {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}>
-                    <div style={{ marginBottom: '0' }}>
+                    <div style={{ marginBottom: '0', cursor: 'pointer' }} onClick={() => handleViewCall(call)}>
                       <div style={{ color: '#fff', fontWeight: '500' }}>
                         {formatDate(call.createdAt)}
                       </div>
