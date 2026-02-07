@@ -37,7 +37,6 @@ const CallLogs = () => {
     queryKey: ['ai-call-logs', debouncedSearch],
     queryFn: async () => {
       const response = await aiAPI.getCallLogs(1, 50);
-      console.log('API Response:', response.data); // Debug log
       return response.data;
     }
   });
@@ -142,23 +141,22 @@ const CallLogs = () => {
   const downloadRecording = async (callId) => {
     const call = callLogs.find(c => c._id === callId);
     if (!call?.recordingUrl) {
-      console.log('No recording available for this call');
       return;
     }
 
     try {
       // Use backend proxy to download recording
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/call-logs/${callId}/recording`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/v1/ai/call-logs/${callId}/recording`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       if (!response.ok) {
-        console.log('Recording download failed - no recording available');
         return;
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -169,32 +167,34 @@ const CallLogs = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.log('Recording download failed - no recording available');
+      // Silent fail
     }
   };
 
   const toggleAudio = async (callId) => {
     const audioElement = document.getElementById(`audio-${callId}`);
     const call = callLogs.find(c => c._id === callId);
-    
+
     if (!call?.recordingUrl) {
       console.log('No recording available');
       return;
     }
-    
+
     if (audioElement) {
-      // Set audio source to backend proxy URL if not already set
+      // Set audio source to backend proxy URL with auth token if not already set
       if (!audioElement.src || audioElement.src === window.location.href) {
-        const proxyUrl = `${import.meta.env.VITE_API_URL}/api/call-logs/${callId}/recording`;
+        const token = localStorage.getItem('token');
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const proxyUrl = `${apiUrl}/api/v1/ai/call-logs/${callId}/recording?token=${token}`;
         audioElement.src = proxyUrl;
       }
-      
+
       if (playingAudio[callId]) {
         audioElement.pause();
         setPlayingAudio(prev => ({ ...prev, [callId]: false }));
       } else {
-        audioElement.play().catch(() => {
-          console.log('Audio playback failed - no recording available');
+        audioElement.play().catch((error) => {
+          console.log('Audio playback failed:', error);
         });
         setPlayingAudio(prev => ({ ...prev, [callId]: true }));
       }
@@ -400,196 +400,201 @@ const CallLogs = () => {
               overflowY: 'visible',
               WebkitOverflowScrolling: 'touch'
             }}
-            className="custom-scrollbar">
+              className="custom-scrollbar">
 
               {/* Minimum width wrapper for horizontal scroll */}
               <div style={{ minWidth: '1200px' }}>
 
-              {/* Table Header */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
-                gap: '15px',
-                padding: '15px 30px',
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#999'
-              }}>
-                <div>Call Date</div>
-                <div>Bot Name</div>
-                <div>From Number</div>
-                <div>To Number</div>
-                <div>Duration</div>
-                <div>Call Type</div>
-                <div>Status</div>
-                <div>Cost</div>
-                <div>Recording</div>
-              </div>
+                {/* Table Header */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                  gap: '15px',
+                  padding: '15px 30px',
+                  borderBottom: '1px solid rgba(255,255,255,0.1)',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#999'
+                }}>
+                  <div>Call Date</div>
+                  <div>Bot Name</div>
+                  <div>From Number</div>
+                  <div>To Number</div>
+                  <div>Duration</div>
+                  <div>Call Type</div>
+                  <div>Status</div>
+                  <div>Cost</div>
+                  <div>Recording</div>
+                </div>
 
-              {/* Empty State or Call Logs */}
-              {paginatedCallLogs.length === 0 ? (
-                <EmptyState
-                  icon={faClipboardList}
-                  title="No call logs yet"
-                  description="Your AI call history will appear here once you start calling customers. Track AI performance, transcripts, and outcomes."
-                  actionText="Make Voice Call"
-                  onAction={() => navigate('/voice-ai-assistants')}
-                />
-              ) : (
-                /* Call Logs List */
-                paginatedCallLogs.map((call) => (
-                  <div key={call._id} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
-                    gap: '15px',
-                    padding: '20px 30px',
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
-                    fontSize: '14px',
-                    alignItems: 'center',
-                    transition: 'background-color 0.2s ease'
-                  }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                {/* Empty State or Call Logs */}
+                {paginatedCallLogs.length === 0 ? (
+                  <EmptyState
+                    icon={faClipboardList}
+                    title="No call logs yet"
+                    description="Your AI call history will appear here once you start calling customers. Track AI performance, transcripts, and outcomes."
+                    actionText="Make Voice Call"
+                    onAction={() => navigate('/voice-ai-assistants')}
+                  />
+                ) : (
+                  /* Call Logs List */
+                  paginatedCallLogs.map((call) => (
+                    <div key={call._id} style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
+                      gap: '15px',
+                      padding: '20px 30px',
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      fontSize: '14px',
+                      alignItems: 'center',
+                      transition: 'background-color 0.2s ease'
                     }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }}>
-                    <div style={{ marginBottom: '0', cursor: 'pointer' }} onClick={() => handleViewCall(call)}>
-                      <div style={{ color: '#fff', fontWeight: '500' }}>
-                        {formatDate(call.createdAt)}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '0' }}>
-                      <div style={{ color: '#60a5fa', fontWeight: '500' }}>
-                        {call.handledBy === 'AI' ? (call.botName || 'TalkAI Agent') : 'Human Agent'}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '0' }}>
-                      <div style={{ color: '#999', fontFamily: 'monospace' }}>
-                        {call.callerNumber || '+18648104203'}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '0' }}>
-                      <div style={{ color: '#999', fontFamily: 'monospace' }}>
-                        {call.receiverNumber || 'N/A'}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '0' }}>
-                      <div style={{ color: '#fff' }}>
-                        {formatDuration(call.duration)}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '0' }}>
-                      <div style={{ color: '#999' }}>
-                        Call
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '0' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        color: '#60a5fa'
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
                       }}>
-                        completed
-                      </span>
-                    </div>
-
-                    <div style={{ marginBottom: '0' }}>
-                      <div style={{ color: '#4ade80' }}>
-                        ${(call.duration * 0.01).toFixed(2) || '0.00'}
+                      <div style={{ marginBottom: '0', cursor: 'pointer' }} onClick={() => handleViewCall(call)}>
+                        <div style={{ color: '#fff', fontWeight: '500' }}>
+                          {formatDate(call.createdAt)}
+                        </div>
                       </div>
-                    </div>
 
-                    <div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <audio
-                          id={`audio-${call._id}`}
-                          style={{ display: 'none' }}
-                          onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
-                          onError={() => console.log('Audio failed to load')}
-                        />
+                      <div style={{ marginBottom: '0' }}>
+                        <div style={{ color: '#60a5fa', fontWeight: '500' }}>
+                          {call.handledBy === 'AI' ? (call.botName || 'TalkAI Agent') : 'Human Agent'}
+                        </div>
+                      </div>
 
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          backgroundColor: '#2d2d2d',
-                          borderRadius: '20px',
-                          padding: '8px 12px',
-                          minWidth: '120px'
+                      <div style={{ marginBottom: '0' }}>
+                        <div style={{ color: '#999', fontFamily: 'monospace' }}>
+                          {call.callerNumber || '+18648104203'}
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '0' }}>
+                        <div style={{ color: '#999', fontFamily: 'monospace' }}>
+                          {call.receiverNumber || 'N/A'}
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '0' }}>
+                        <div style={{ color: '#fff' }}>
+                          {formatDuration(call.duration)}
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '0' }}>
+                        <div style={{ color: '#999' }}>
+                          Call
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '0' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          color: '#60a5fa'
                         }}>
-                          <button
-                            onClick={() => toggleAudio(call._id)}
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              border: 'none',
-                              backgroundColor: 'rgb(96, 165, 250)',
-                              color: '#fff',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                          completed
+                        </span>
+                      </div>
+
+                      <div style={{ marginBottom: '0' }}>
+                        <div style={{ color: '#4ade80' }}>
+                          ${(call.duration * 0.01).toFixed(2) || '0.00'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <audio
+                            id={`audio-${call._id}`}
+                            style={{ display: 'none' }}
+                            onEnded={() => setPlayingAudio(prev => ({ ...prev, [call._id]: false }))}
+                            onError={(e) => {
+                              console.log('Audio failed to load');
+                              console.log('Audio error details:', e.target.error);
+                              console.log('Audio src:', e.target.src);
                             }}
-                          >
-                            <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
-                          </button>
+                            crossOrigin="anonymous"
+                          />
 
                           <div style={{
-                            flex: 1,
-                            height: '4px',
-                            backgroundColor: '#404040',
-                            borderRadius: '2px',
-                            overflow: 'hidden'
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            backgroundColor: '#2d2d2d',
+                            borderRadius: '20px',
+                            padding: '8px 12px',
+                            minWidth: '120px'
                           }}>
+                            <button
+                              onClick={() => toggleAudio(call._id)}
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                border: 'none',
+                                backgroundColor: 'rgb(96, 165, 250)',
+                                color: '#fff',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <FontAwesomeIcon icon={playingAudio[call._id] ? faPause : faPlay} />
+                            </button>
+
                             <div style={{
-                              height: '100%',
-                              backgroundColor: 'rgb(96, 165, 250)',
-                              width: '0%',
-                              borderRadius: '2px'
-                            }} />
+                              flex: 1,
+                              height: '4px',
+                              backgroundColor: '#404040',
+                              borderRadius: '2px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                height: '100%',
+                                backgroundColor: 'rgb(96, 165, 250)',
+                                width: '0%',
+                                borderRadius: '2px'
+                              }} />
+                            </div>
+
+                            <span style={{
+                              color: '#9ca3af',
+                              fontSize: '11px',
+                              fontFamily: 'monospace'
+                            }}>
+                              {formatDuration(call.duration)}
+                            </span>
                           </div>
 
-                          <span style={{
-                            color: '#9ca3af',
-                            fontSize: '11px',
-                            fontFamily: 'monospace'
-                          }}>
-                            {formatDuration(call.duration)}
-                          </span>
+                          <button
+                            onClick={() => downloadRecording(call._id)}
+                            style={{
+                              padding: '8px',
+                              borderRadius: '50%',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              backgroundColor: 'transparent',
+                              color: '#60a5fa',
+                              fontSize: '12px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faDownload} />
+                          </button>
                         </div>
-
-                        <button
-                          onClick={() => downloadRecording(call._id)}
-                          style={{
-                            padding: '8px',
-                            borderRadius: '50%',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            backgroundColor: 'transparent',
-                            color: '#60a5fa',
-                            fontSize: '12px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <FontAwesomeIcon icon={faDownload} />
-                        </button>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -601,14 +606,17 @@ const CallLogs = () => {
           isOpen={showCallDetails}
           onClose={() => setShowCallDetails(false)}
           title="Call Details"
+          maxWidth="700px"
         >
-          <div style={{ padding: '20px' }}>
+          <div style={{ padding: '0 20px 20px 20px', marginTop: '20px' }}>
             <div style={{ marginBottom: '20px' }}>
               <h3 style={{ color: '#fff', marginBottom: '10px' }}>Call Information</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
                 <div>
                   <label style={{ color: '#999', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Call ID</label>
-                  <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: '14px' }}>{selectedCall.callId}</div>
+                  <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: '14px' }}>
+                    {selectedCall.callId.slice(-8)}
+                  </div>
                 </div>
                 <div>
                   <label style={{ color: '#999', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Date & Time</label>
@@ -636,74 +644,85 @@ const CallLogs = () => {
 
             {selectedCall.transcript && (
               <div style={{ marginBottom: '20px' }}>
-                <h3 style={{ color: '#fff', marginBottom: '10px' }}>Conversation Transcript</h3>
+                <h3 style={{ color: '#fff', marginBottom: '15px', fontSize: '18px' }}>Conversation Transcript</h3>
                 <div style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  padding: '15px',
-                  borderRadius: '8px',
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  padding: '20px',
+                  borderRadius: '12px',
                   maxHeight: '400px',
-                  overflowY: 'auto'
+                  overflowY: 'auto',
+                  border: '1px solid rgba(255,255,255,0.1)'
                 }}>
                   {(() => {
                     try {
                       const transcript = JSON.parse(selectedCall.transcript);
                       return transcript.map((exchange, index) => (
-                        <div key={index} style={{ marginBottom: '20px' }}>
+                        <div key={index} style={{ marginBottom: '24px' }}>
                           {/* User Message */}
-                          <div style={{ marginBottom: '10px' }}>
-                            <div style={{ 
-                              color: '#60a5fa', 
-                              fontSize: '12px', 
-                              fontWeight: '600',
-                              marginBottom: '4px'
-                            }}>
-                              {exchange.userSpeaker}
-                            </div>
-                            <div style={{
-                              backgroundColor: 'rgba(96, 165, 250, 0.1)',
-                              padding: '10px',
-                              borderRadius: '8px',
-                              color: '#e5e7eb',
-                              fontSize: '14px',
-                              lineHeight: '1.5'
-                            }}>
-                              {exchange.userMessage}
-                            </div>
-                            <div style={{ 
-                              color: '#666', 
-                              fontSize: '11px', 
-                              marginTop: '4px'
-                            }}>
-                              {new Date(exchange.timestamp).toLocaleTimeString()}
+                          <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                            <div style={{ maxWidth: '80%' }}>
+                              <div style={{
+                                color: '#a78bfa',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                marginBottom: '6px',
+                                textAlign: 'right'
+                              }}>
+                                {exchange.userSpeaker}
+                              </div>
+                              <div style={{
+                                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.15))',
+                                padding: '12px 16px',
+                                borderRadius: '12px 12px 4px 12px',
+                                color: '#e5e7eb',
+                                fontSize: '14px',
+                                lineHeight: '1.6',
+                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                boxShadow: '0 2px 8px rgba(139, 92, 246, 0.1)'
+                              }}>
+                                {exchange.userMessage}
+                              </div>
+                              <div style={{
+                                color: '#6b7280',
+                                fontSize: '11px',
+                                marginTop: '4px',
+                                textAlign: 'right'
+                              }}>
+                                {new Date(exchange.timestamp).toLocaleTimeString()}
+                              </div>
                             </div>
                           </div>
-                          
+
                           {/* AI Response */}
-                          <div>
-                            <div style={{ 
-                              color: '#4ade80', 
-                              fontSize: '12px', 
-                              fontWeight: '600',
-                              marginBottom: '4px'
-                            }}>
-                              {exchange.aiSpeaker}
-                            </div>
-                            <div style={{
-                              backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                              padding: '10px',
-                              borderRadius: '8px',
-                              color: '#e5e7eb',
-                              fontSize: '14px',
-                              lineHeight: '1.5'
-                            }}>
-                              {exchange.aiResponse}
-                            </div>
-                            <div style={{ 
-                              color: '#666', 
-                              fontSize: '11px', 
-                              marginTop: '4px'
-                            }}>
-                              {new Date(exchange.timestamp).toLocaleTimeString()}
+                          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                            <div style={{ maxWidth: '80%' }}>
+                              <div style={{
+                                color: '#34d399',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                marginBottom: '6px'
+                              }}>
+                                {exchange.aiSpeaker}
+                              </div>
+                              <div style={{
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.15))',
+                                padding: '12px 16px',
+                                borderRadius: '12px 12px 12px 4px',
+                                color: '#e5e7eb',
+                                fontSize: '14px',
+                                lineHeight: '1.6',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.1)'
+                              }}>
+                                {exchange.aiResponse}
+                              </div>
+                              <div style={{
+                                color: '#6b7280',
+                                fontSize: '11px',
+                                marginTop: '4px'
+                              }}>
+                                {new Date(exchange.timestamp).toLocaleTimeString()}
+                              </div>
                             </div>
                           </div>
                         </div>

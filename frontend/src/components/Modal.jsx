@@ -31,6 +31,8 @@ export const Modal = ({
         style={{
           maxWidth,
           width: '90%',
+          maxHeight: '85vh',
+          overflowY: 'auto',
           margin: '20px',
           animation: 'slideUp 0.3s ease'
         }}

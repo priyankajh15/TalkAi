@@ -118,10 +118,11 @@ const getRecording = async (req, res) => {
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     
     try {
-      // Add .wav extension to Twilio recording URL
-      const recordingUrlWithFormat = callLog.recordingUrl.includes('.wav') 
-        ? callLog.recordingUrl 
-        : `${callLog.recordingUrl}.wav`;
+      // Try .mp3 first (Twilio's default format), then .wav
+      let recordingUrlWithFormat = callLog.recordingUrl;
+      if (!recordingUrlWithFormat.includes('.mp3') && !recordingUrlWithFormat.includes('.wav')) {
+        recordingUrlWithFormat = `${callLog.recordingUrl}.mp3`;
+      }
       
       const response = await axios.get(recordingUrlWithFormat, {
         auth: {
@@ -131,9 +132,15 @@ const getRecording = async (req, res) => {
         responseType: 'stream'
       });
       
-      // Set headers for audio file
-      res.setHeader('Content-Type', 'audio/wav');
-      res.setHeader('Content-Disposition', `attachment; filename="recording-${callId}.wav"`);
+      // Detect content type from response or use mp3 as default
+      const contentType = response.headers['content-type'] || 'audio/mpeg';
+      
+      // Set headers for audio file with CORS
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="recording-${callId}.mp3"`);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET');
       
       // Pipe the recording stream to response
       response.data.pipe(res);
