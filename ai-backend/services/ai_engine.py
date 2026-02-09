@@ -448,7 +448,7 @@ class SmartKBExtractor:
     """ FIXED: Extract relevant info from ANY knowledge base (not just cricket PDF)"""
     
     @staticmethod
-    def extract_relevant_answer(question: str, kb_content: str, max_sentences: int = 3) -> str:
+    def extract_relevant_answer(question: str, kb_content: str, max_sentences: int = 1) -> str:
         """Extract most relevant sentences from KB based on question"""
         if not kb_content or not question:
             return ""
