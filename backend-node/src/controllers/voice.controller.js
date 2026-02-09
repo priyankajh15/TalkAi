@@ -53,6 +53,7 @@ exports.makeVoiceCall = async (req, res) => {
       const companyKnowledge = await KnowledgeBase.find({
         companyId: req.user?.companyId,
         isActive: true,
+        useInCalls: true, // Only get PDFs marked for voice calls
         content: { $not: /Text extraction failed/ } // Exclude failed extractions
       }).select('title content category');
       
@@ -125,12 +126,9 @@ exports.makeVoiceCall = async (req, res) => {
       }
     };
 
-    // Encode call data in webhook URL
-    const callDataEncoded = Buffer.from(JSON.stringify(callData)).toString('base64');
-
-    // Initiate the call with data in URL
+    // Initiate the call (data will be stored in memory, not URL)
     const call = await client.calls.create({
-      url: `${webhookUrl}?data=${encodeURIComponent(callDataEncoded)}`,
+      url: webhookUrl,
       to: formattedNumber,
       from: twilioNumber,
       method: 'POST',

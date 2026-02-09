@@ -198,21 +198,22 @@ exports.uploadPDF = async (req, res, next) => {
     }
 
     // Create knowledge base entry with extracted text
+    const extractionFailed = pdfText.includes('Text extraction failed');
+    
     const item = await KnowledgeBase.create({
       companyId: req.user.companyId,
       title: req.file.originalname.replace('.pdf', ''),
       content: pdfText,
-      category: 'pdf'
+      category: 'pdf',
+      useInCalls: !extractionFailed,
+      extractionFailed: extractionFailed
     });
-
-    // Check if text extraction failed
-    const extractionFailed = pdfText.includes('Text extraction failed');
     
     res.status(201).json({
-      success: true,
+      success: !extractionFailed,
       data: item,
       message: extractionFailed 
-        ? "PDF uploaded but text extraction failed. The AI won't be able to use this content."
+        ? "PDF upload failed. File may be corrupted, try again."
         : "PDF uploaded and processed successfully",
       extractionFailed
     });
@@ -225,6 +226,50 @@ exports.uploadPDF = async (req, res, next) => {
         console.error('File cleanup error:', unlinkError);
       }
     }
+    next(err);
+  }
+};
+
+/**
+ * TOGGLE USE IN CALLS
+ */
+exports.toggleUseInCalls = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { useInCalls } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid item ID format"
+      });
+    }
+
+    const item = await KnowledgeBase.findOneAndUpdate(
+      {
+        _id: id,
+        companyId: req.user.companyId,
+        isActive: true
+      },
+      { useInCalls },
+      { new: true }
+    );
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Knowledge item not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: item,
+      message: useInCalls 
+        ? `"${item.title}" is now active for voice calls` 
+        : `"${item.title}" is now inactive for voice calls`
+    });
+  } catch (err) {
     next(err);
   }
 };

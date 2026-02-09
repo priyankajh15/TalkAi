@@ -21,4 +21,7 @@ router.delete("/:id", auth, role("company_admin"), controller.deleteItem);
 // PDF upload endpoint
 router.post('/upload-pdf', auth, upload.single('file'), controller.uploadPDF);
 
+// Toggle use in calls
+router.patch('/:id/toggle-calls', auth, controller.toggleUseInCalls);
+
 module.exports = router;

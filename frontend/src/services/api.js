@@ -70,10 +70,13 @@ export const aiAPI = {
   },
 
   getKnowledgeFiles: () =>
-    api.get('/ai/knowledge/files'),
+    api.get('/knowledge'),
 
   deleteKnowledgeFile: (fileId) =>
-    api.delete(`/ai/knowledge/file/${fileId}`)
+    api.delete(`/knowledge/${fileId}`),
+
+  toggleUseInCalls: (fileId, useInCalls) =>
+    api.patch(`/knowledge/${fileId}/toggle-calls`, { useInCalls })
 };
 
 // Voice API functions

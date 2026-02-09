@@ -24,14 +24,17 @@ const KnowledgeBase = () => {
   const loadFiles = async () => {
     try {
       const response = await aiAPI.getKnowledgeFiles();
-      const files = response.data.data.map(file => ({
-        id: file._id,
-        name: file.title,
-        size: (file.content.length / 1024 / 1024).toFixed(2) + ' MB',
-        uploadedAt: file.createdAt,
-        status: 'processed',
-        type: file.category === 'website' ? 'website' : 'pdf'
-      }));
+      const files = response.data.data
+        .filter(file => !file.extractionFailed) // Hide failed PDFs from user
+        .map(file => ({
+          id: file._id,
+          name: file.title,
+          size: (file.content.length / 1024 / 1024).toFixed(2) + ' MB',
+          uploadedAt: file.createdAt,
+          status: 'processed',
+          type: file.category === 'website' ? 'website' : 'pdf',
+          useInCalls: file.useInCalls !== undefined ? file.useInCalls : true
+        }));
       setUploadedFiles(files);
       
       // Calculate storage used
@@ -75,11 +78,10 @@ const KnowledgeBase = () => {
         try {
           const response = await aiAPI.uploadPDF(file);
           
-          // Check backend response for extraction failure
           if (response.data.extractionFailed) {
-            toast.error(`${file.name}: ${response.data.message}`);
+            toast.error(response.data.message);
           } else {
-            toast.success(`${file.name} uploaded and processed successfully!`);
+            toast.success(response.data.message);
           }
           
           // Reload files to get updated list
@@ -125,6 +127,26 @@ const KnowledgeBase = () => {
 
   const confirmDelete = (file) => {
     setDeleteConfirm(file);
+  };
+
+  const handleToggleUseInCalls = async (file) => {
+    try {
+      const newValue = !file.useInCalls;
+      const response = await aiAPI.toggleUseInCalls(file.id, newValue);
+      
+      toast.success(response.data.message);
+      await loadFiles();
+      
+      // Check if all PDFs are now unchecked
+      const updatedFiles = await aiAPI.getKnowledgeFiles();
+      const activePDFs = updatedFiles.data.data.filter(f => f.useInCalls);
+      
+      if (activePDFs.length === 0 && updatedFiles.data.data.length > 0) {
+        toast.error('No PDFs active. AI won\'t use company-specific knowledge.');
+      }
+    } catch (error) {
+      toast.error('Failed to update voice call settings');
+    }
   };
 
   const storagePercentage = (storageUsed / storageLimit) * 100;
@@ -368,12 +390,12 @@ const KnowledgeBase = () => {
                     borderRadius: '8px',
                     border: '1px solid rgba(255,255,255,0.1)'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
                       <FontAwesomeIcon 
                         icon={file.type === 'website' ? faGlobe : faFile} 
                         style={{ color: '#667eea', fontSize: '20px' }} 
                       />
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: '500', marginBottom: '4px' }}>
                           {file.name}
                         </div>
@@ -382,20 +404,43 @@ const KnowledgeBase = () => {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => confirmDelete(file)}
-                      style={{
-                        padding: '8px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                        color: '#dc2626',
-                        cursor: 'pointer'
-                      }}
-                      title="Delete file"
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        color: file.useInCalls ? '#10b981' : '#999',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        backgroundColor: file.useInCalls ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${file.useInCalls ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.1)'}`,
+                        transition: 'all 0.2s ease'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={file.useInCalls}
+                          onChange={() => handleToggleUseInCalls(file)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <span>Use in calls</span>
+                      </label>
+                      <button
+                        onClick={() => confirmDelete(file)}
+                        style={{
+                          padding: '8px',
+                          borderRadius: '4px',
+                          border: 'none',
+                          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                          color: '#dc2626',
+                          cursor: 'pointer'
+                        }}
+                        title="Delete file"
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

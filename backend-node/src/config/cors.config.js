@@ -13,7 +13,7 @@ module.exports = {
 
     return callback(new Error("CORS not allowed"));
   },
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 };

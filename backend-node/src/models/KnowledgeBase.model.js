@@ -14,6 +14,8 @@ const KnowledgeBaseSchema = new mongoose.Schema(
     content: { type: String, required: true },
 
     isActive: { type: Boolean, default: true, index: true },
+    useInCalls: { type: Boolean, default: true, index: true },
+    extractionFailed: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );
