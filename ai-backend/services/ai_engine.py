@@ -237,10 +237,13 @@ class LightweightSentimentAnalyzer:
         text_cleaned = re.sub(r'[^\w\s]', '', text_lower)
         text_cleaned = re.sub(r'\s+', ' ', text_cleaned).strip()
         
+        # Also check with asterisks replaced
+        text_asterisk_replaced = text_lower.replace('*', '').replace('-', '').replace('_', '')
+        
         # Check for exact word matches
-        english_abuse = any(word in text_lower or word in text_cleaned 
+        english_abuse = any(word in text_lower or word in text_cleaned or word in text_asterisk_replaced
                            for word in self.abusive_words['english'])
-        hindi_abuse = any(word in text_lower or word in text_cleaned 
+        hindi_abuse = any(word in text_lower or word in text_cleaned or word in text_asterisk_replaced
                          for word in self.abusive_words['hindi'])
         
         # Check for pattern-based matches (variations)
@@ -560,8 +563,23 @@ class LightweightAIEngine:
             current_stage = self.state_manager.get_current_stage(call_sid) if call_sid else 'greeting'
             
             # Step 2: Detect language
-            language, lang_confidence = self.language_detector.detect_language(user_message)
-            logger.info(f"Language: {language} (confidence: {lang_confidence:.2f})")
+            # FIXED: Respect user's language selection if not 'auto'
+            user_selected_language = voice_settings.get('language', 'auto')
+            
+            if user_selected_language == 'hi-IN':
+                # User selected Hindi only
+                language = 'hindi'
+                lang_confidence = 1.0
+                logger.info(f"Language: {language} (user selected Hindi)")
+            elif user_selected_language == 'en-IN':
+                # User selected English only
+                language = 'english'
+                lang_confidence = 1.0
+                logger.info(f"Language: {language} (user selected English)")
+            else:
+                # Auto-detect (default behavior)
+                language, lang_confidence = self.language_detector.detect_language(user_message)
+                logger.info(f"Language: {language} (auto-detected, confidence: {lang_confidence:.2f})")
             
             # Step 3: Analyze sentiment
             sentiment = self.sentiment_analyzer.analyze_sentiment(user_message)
@@ -582,7 +600,8 @@ class LightweightAIEngine:
                     'should_escalate': True,
                     'abusive_detected': True,  # CRITICAL FLAG
                     'intent': 'abusive',
-                    'intent_confidence': 1.0
+                    'intent_confidence': 1.0,
+                    'goodbye_detected': False
                 }
             
             # Step 5: Get conversation context
@@ -775,7 +794,7 @@ class LightweightAIEngine:
         """ FIXED: Generate intelligent answer from KB (works with ANY PDF type)"""
         
         #  Extract relevant sentences (not word-by-word reading)
-        relevant_answer = SmartKBExtractor.extract_relevant_answer(user_question, kb_content, max_sentences=3)
+        relevant_answer = SmartKBExtractor.extract_relevant_answer(user_question, kb_content, max_sentences=1)
         
         if not relevant_answer:
             return self._get_no_info_response(language, personality)
@@ -966,11 +985,11 @@ class LightweightAIEngine:
         """Response for abusive content"""
         
         if language == 'hindi':
-            return "Main yahaan madad karne ke liye hoon, lekin hamare conversation ko respectful rehna chahiye. Kya main aapki kisi aur tarah se madad kar sakta hoon?"
+            return "Main yahaan aapki madad karne ke liye hoon, lekin hamari baatcheet respectful honi chahiye. Agar aap aise baat karenge toh main call end karna padunga. Kya aap professionally baat karna chahte hain?"
         elif language == 'hinglish':
-            return "I'm here to help, but I need our conversation to be respectful. Kya main aapki kisi aur tarah se help kar sakta hoon?"
+            return "I'm here to help you, but our conversation needs to be respectful. Agar aap aise baat karenge toh I'll have to end the call. Can we continue professionally?"
         else:
-            return "I'm here to help you, but I need our conversation to remain respectful. Can I assist you with something else?"
+            return "I'm here to help you, but I need our conversation to remain respectful. If you continue using inappropriate language, I'll have to end this call. Can we continue professionally?"
     
     def _get_no_info_response(self, language: str, personality: str) -> str:
         """Response when no KB info found"""
