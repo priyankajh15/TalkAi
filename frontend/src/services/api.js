@@ -1,5 +1,9 @@
 import axios from 'axios';
 
+// Request cache for deduplication
+const requestCache = new Map();
+const CACHE_DURATION = 5000; // 5 seconds
+
 const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production'
     ? 'https://talkai-appo.onrender.com/api/v1'
@@ -7,21 +11,67 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000 // 10 second timeout
 });
 
-// Add token to requests
+// Request deduplication interceptor
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Generate cache key from method, URL, and params
+  const cacheKey = `${config.method}:${config.url}:${JSON.stringify(config.params || {})}`;
+  
+  // Check if identical request is in flight
+  if (requestCache.has(cacheKey)) {
+    const cached = requestCache.get(cacheKey);
+    const age = Date.now() - cached.timestamp;
+    
+    if (age < CACHE_DURATION && cached.promise) {
+      // Return existing promise to deduplicate request
+      return cached.promise.then(() => config);
+    } else {
+      // Clear expired cache
+      requestCache.delete(cacheKey);
+    }
+  }
+  
+  // Store new request in cache
+  const promise = new Promise((resolve) => {
+    config._cacheResolve = resolve;
+  });
+  
+  requestCache.set(cacheKey, {
+    promise,
+    timestamp: Date.now()
+  });
+  
   return config;
 });
 
-// Handle token expiration
+// Response interceptor with cache cleanup
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Resolve cache promise
+    if (response.config._cacheResolve) {
+      response.config._cacheResolve();
+    }
+    
+    // Clean up cache entry after response
+    const cacheKey = `${response.config.method}:${response.config.url}:${JSON.stringify(response.config.params || {})}`;
+    setTimeout(() => requestCache.delete(cacheKey), CACHE_DURATION);
+    
+    return response;
+  },
   (error) => {
+    // Clean up cache on error
+    if (error.config) {
+      const cacheKey = `${error.config.method}:${error.config.url}:${JSON.stringify(error.config.params || {})}`;
+      requestCache.delete(cacheKey);
+    }
+    
     const isLoginRequest = error.config?.url?.includes('/auth/login');
 
     if (error.response?.status === 401 && !isLoginRequest) {

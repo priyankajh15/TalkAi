@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
 
 const requestId = require("./middleware/requestId.middleware");
 const { globalLimiter } = require("./middleware/rateLimit.middleware");
@@ -17,6 +18,7 @@ const healthRoutes = require("./routes/health.routes");
 const app = express();
 app.set("trust proxy", 1);
 
+app.use(compression());
 app.use(express.json());
 app.use(requestId);
 app.use(cors(corsConfig));

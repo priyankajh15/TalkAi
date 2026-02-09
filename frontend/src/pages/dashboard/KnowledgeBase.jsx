@@ -134,7 +134,12 @@ const KnowledgeBase = () => {
       const newValue = !file.useInCalls;
       const response = await aiAPI.toggleUseInCalls(file.id, newValue);
       
-      toast.success(response.data.message);
+      if (newValue) {
+        toast.success(response.data.message);
+      } else {
+        toast.error(response.data.message);
+      }
+      
       await loadFiles();
       
       // Check if all PDFs are now unchecked

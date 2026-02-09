@@ -1,12 +1,12 @@
 const rateLimit = require("express-rate-limit");
 
-const getClientIp = (req) => {
-  return (
-    req.ip ||
-    req.headers["x-forwarded-for"]?.split(",")[0] ||
-    req.socket?.remoteAddress ||
-    "unknown"
-  );
+const getClientKey = (req) => {
+  if (req.user?.userId) {
+    return `user:${req.user.userId}`;
+  }
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip = forwarded ? forwarded.split(',')[0].trim() : req.ip;
+  return `ip:${ip}`;
 };
 
 // Base Limiter (global, soft)
@@ -16,7 +16,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 
-  keyGenerator: (req) => getClientIp(req),
+  keyGenerator: (req) => getClientKey(req),
 
   handler: (req, res) => {
     res.status(429).json({
@@ -32,7 +32,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 
-  keyGenerator: (req) => getClientIp(req),
+  keyGenerator: (req) => getClientKey(req),
 
   handler: (req, res) => {
     res.status(429).json({

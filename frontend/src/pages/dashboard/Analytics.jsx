@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -8,8 +8,19 @@ import api from '../../services/api';
 const Analytics = () => {
   const [dateRange, setDateRange] = useState('7');
   const [selectedBot, setSelectedBot] = useState('all');
+  const [isVisible, setIsVisible] = useState(true);
 
-  // ✅ Auto-refresh analytics every 60 seconds
+  // Detect tab visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // Smart polling - only when tab is visible
   const { data: analyticsData } = useQuery({
     queryKey: ['analytics', dateRange, selectedBot],
     queryFn: async () => {
@@ -22,8 +33,9 @@ const Analytics = () => {
         totalAssistants: 0
       };
     },
-    refetchInterval: 60000, // Auto-refresh every 60 seconds
-    staleTime: 30000 // Consider fresh for 30 seconds
+    refetchInterval: isVisible ? 60000 : false, // Only poll when tab is visible
+    staleTime: 30000,
+    refetchOnWindowFocus: true // Refresh when user returns to tab
   });
 
   return (

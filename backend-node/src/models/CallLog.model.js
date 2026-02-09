@@ -35,7 +35,9 @@ const CallLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound index for frequent sorted queries
+// Compound indexes for frequent sorted queries
 CallLogSchema.index({ companyId: 1, createdAt: -1 });
+CallLogSchema.index({ companyId: 1, status: 1, createdAt: -1 });
+CallLogSchema.index({ companyId: 1, handledBy: 1, createdAt: -1 });
 
 module.exports = mongoose.model("CallLog", CallLogSchema);

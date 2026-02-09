@@ -22,8 +22,10 @@ import Documentation from './pages/dashboard/Documentation';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      staleTime: 30000, // 30 seconds default
+      cacheTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false, // Prevent refetch on every focus
+      retry: 1, // Only retry once on failure
     },
   },
 });

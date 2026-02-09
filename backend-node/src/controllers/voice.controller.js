@@ -55,57 +55,18 @@ exports.makeVoiceCall = async (req, res) => {
         isActive: true,
         useInCalls: true, // Only get PDFs marked for voice calls
         content: { $not: /Text extraction failed/ } // Exclude failed extractions
-      }).select('title content category');
+      }).select('title chunks category');
       
-      //  NEW: Smart chunking for long documents
-      knowledgeBase = companyKnowledge.flatMap(kb => {
-        const content = kb.content;
-        const chunkSize = 1500; // ~300 words per chunk
-        const chunks = [];
-        
-        // Split long documents into searchable chunks
-        if (content.length > chunkSize) {
-          // Split by paragraphs first
-          const paragraphs = content.split(/\n\n+/);
-          let currentChunk = '';
-          
-          for (const para of paragraphs) {
-            if (currentChunk.length + para.length > chunkSize && currentChunk) {
-              chunks.push({
-                title: kb.title,
-                content: currentChunk.trim(),
-                category: kb.category,
-                chunk_id: chunks.length + 1
-              });
-              currentChunk = para;
-            } else {
-              currentChunk += '\n\n' + para;
-            }
-          }
-          
-          // Add remaining content
-          if (currentChunk) {
-            chunks.push({
-              title: kb.title,
-              content: currentChunk.trim(),
-              category: kb.category,
-              chunk_id: chunks.length + 1
-            });
-          }
-        } else {
-          // Small documents - keep as is
-          chunks.push({
-            title: kb.title,
-            content: content,
-            category: kb.category,
-            chunk_id: 1
-          });
-        }
-        
-        return chunks;
-      });
+      knowledgeBase = companyKnowledge.flatMap(kb => 
+        (kb.chunks || [kb.content]).map((chunk, i) => ({
+          title: kb.title,
+          content: chunk,
+          category: kb.category,
+          chunk_id: i + 1
+        }))
+      );
       
-      console.log(`Processed ${knowledgeBase.length} KB chunks from ${companyKnowledge.length} documents`);
+      console.log(`Loaded ${knowledgeBase.length} KB chunks from ${companyKnowledge.length} documents`);
     } catch (kbError) {
       console.error('Failed to fetch knowledge base:', kbError.message);
     }
@@ -495,8 +456,14 @@ function generateProfessionalPrompt(callData) {
 /**
  * Generate contextual response using Phase 3 Python AI backend
  */
+const responseCache = new Map();
+
 async function generateContextualResponse(userResponse, callData) {
   try {
+    const cacheKey = `${callData?.callSid}_${userResponse.substring(0, 50)}`;
+    const cached = responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < 300000) return cached.response;
+
     const isProduction = process.env.NODE_ENV === 'production';
     const AI_BACKEND_URL = isProduction 
       ? process.env.AI_BACKEND_URL_PROD 
@@ -512,18 +479,22 @@ async function generateContextualResponse(userResponse, callData) {
       knowledge_base: callData?.knowledgeBase || []
     };
     
-    const response = await axios.post(`${AI_BACKEND_URL}/voice/voice-response`, requestData, {
-      timeout: 8000,
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await Promise.race([
+      axios.post(`${AI_BACKEND_URL}/voice/voice-response`, requestData, {
+        timeout: 3000,
+        headers: { 'Content-Type': 'application/json' }
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 3000)
+      )
+    ]);
     
-    // Update call log if abusive content detected
+    responseCache.set(cacheKey, { response: response.data.ai_response, timestamp: Date.now() });
+    
     if (response.data.abusive_detected) {
       try {
         await CallLog.findOneAndUpdate(
-          { callId: CallSid },
+          { callId: callData?.callSid },
           { abusiveDetected: true },
           { new: true }
         );

@@ -41,11 +41,7 @@ exports.listItems = async (req, res, next) => {
     };
 
     if (req.query.search) {
-      const escapedSearch = req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.$or = [
-        { title: new RegExp(escapedSearch, "i") },
-        { content: new RegExp(escapedSearch, "i") }
-      ];
+      query.$text = { $search: req.query.search };
     }
 
     const [items, total] = await Promise.all([
@@ -167,6 +163,25 @@ exports.deleteItem = async (req, res, next) => {
 /**
  * UPLOAD PDF
  */
+function chunkContent(text, chunkSize = 1500) {
+  const chunks = [];
+  if (text.length <= chunkSize) return [text];
+  
+  const paragraphs = text.split(/\n\n+/);
+  let currentChunk = '';
+  
+  for (const para of paragraphs) {
+    if (currentChunk.length + para.length > chunkSize && currentChunk) {
+      chunks.push(currentChunk.trim());
+      currentChunk = para;
+    } else {
+      currentChunk += '\n\n' + para;
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk.trim());
+  return chunks;
+}
+
 exports.uploadPDF = async (req, res, next) => {
   try {
     if (!req.file) {
@@ -179,19 +194,17 @@ exports.uploadPDF = async (req, res, next) => {
     // Extract text from PDF
     let pdfText = '';
     try {
-      const pdfBuffer = fs.readFileSync(req.file.path);
+      const pdfBuffer = await fs.promises.readFile(req.file.path);
       const pdfData = await pdfParse(pdfBuffer);
       pdfText = pdfData.text;
       
-      // Clean up uploaded file
-      fs.unlinkSync(req.file.path);
+      await fs.promises.unlink(req.file.path);
     } catch (pdfError) {
       console.error('PDF parsing error:', pdfError);
       pdfText = `PDF file: ${req.file.originalname}. Text extraction failed.`;
       
-      // Clean up uploaded file even on error
       try {
-        fs.unlinkSync(req.file.path);
+        await fs.promises.unlink(req.file.path);
       } catch (unlinkError) {
         console.error('File cleanup error:', unlinkError);
       }
@@ -204,6 +217,7 @@ exports.uploadPDF = async (req, res, next) => {
       companyId: req.user.companyId,
       title: req.file.originalname.replace('.pdf', ''),
       content: pdfText,
+      chunks: chunkContent(pdfText, 1500),
       category: 'pdf',
       useInCalls: !extractionFailed,
       extractionFailed: extractionFailed
@@ -221,7 +235,7 @@ exports.uploadPDF = async (req, res, next) => {
     // Clean up uploaded file on error
     if (req.file && req.file.path) {
       try {
-        fs.unlinkSync(req.file.path);
+        await fs.promises.unlink(req.file.path);
       } catch (unlinkError) {
         console.error('File cleanup error:', unlinkError);
       }

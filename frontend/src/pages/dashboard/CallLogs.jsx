@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClipboardList, faSearch, faEye, faRobot, faUser, faDownload, faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
-import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { SkeletonTable } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -19,6 +19,7 @@ const CallLogs = () => {
   const [showCallDetails, setShowCallDetails] = useState(false);
   const [playingAudio, setPlayingAudio] = useState({});
   const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1);
   const [loadingMessage, setLoadingMessage] = useState('Fetching call logs...');
   const [filters, setFilters] = useState({
     status: 'all',
@@ -29,16 +30,17 @@ const CallLogs = () => {
     startDate: '',
     endDate: ''
   });
-  const isMobile = useMediaQuery('(max-width: 768px)');
   const debouncedSearch = useDebounce(searchTerm, 400);
 
   // Fetch real call logs from AI backend
   const { data: callLogsData, isLoading, error } = useQuery({
-    queryKey: ['ai-call-logs', debouncedSearch],
+    queryKey: ['ai-call-logs', page, pageSize, debouncedSearch],
     queryFn: async () => {
-      const response = await aiAPI.getCallLogs(1, 50);
+      const response = await aiAPI.getCallLogs(page, pageSize);
       return response.data;
-    }
+    },
+    staleTime: 30000,
+    keepPreviousData: true,
   });
 
   // Handle slow server message
@@ -54,8 +56,9 @@ const CallLogs = () => {
 
   const callLogs = callLogsData?.data?.callLogs || [];
 
-  // Apply filters to call logs
-  const filteredCallLogs = callLogs.filter(call => {
+  // Apply filters to call logs - MEMOIZED
+  const filteredCallLogs = useMemo(() => {
+    return callLogs.filter(call => {
     // Search filter
     if (debouncedSearch) {
       const searchLower = debouncedSearch.toLowerCase();
@@ -90,23 +93,28 @@ const CallLogs = () => {
 
     return true;
   });
+  }, [callLogs, debouncedSearch, filters]);
 
-  // Apply pagination
-  const paginatedCallLogs = filteredCallLogs.slice(0, pageSize);
+  const totalPages = callLogsData?.data?.pagination?.pages || 0;
+  const totalRecords = callLogsData?.data?.pagination?.total || 0;
 
-  const handleViewCall = (call) => {
+  const handleViewCall = useCallback((call) => {
     setSelectedCall(call);
     setShowCallDetails(true);
-  };
+  }, []);
 
-  const formatDuration = (seconds) => {
+  const formatDuration = useCallback((seconds) => {
     if (!seconds) return '0s';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-  };
+  }, []);
 
-  const exportToCSV = () => {
+  const formatDate = useCallback((dateString) => {
+    return new Date(dateString).toLocaleString();
+  }, []);
+
+  const exportToCSV = useCallback(() => {
     const csvData = filteredCallLogs.map(call => ({
       'Call Date': formatDate(call.createdAt),
       'Bot Name': call.handledBy === 'AI' ? (call.botName || 'TalkAI Agent') : 'Human Agent',
@@ -132,13 +140,9 @@ const CallLogs = () => {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-  };
+  }, [filteredCallLogs, formatDate, formatDuration]);
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  const downloadRecording = async (callId) => {
+  const downloadRecording = useCallback(async (callId) => {
     const call = callLogs.find(c => c._id === callId);
     if (!call?.recordingUrl) {
       return;
@@ -169,9 +173,9 @@ const CallLogs = () => {
     } catch (error) {
       // Silent fail
     }
-  };
+  }, [callLogs]);
 
-  const toggleAudio = async (callId) => {
+  const toggleAudio = useCallback(async (callId) => {
     const audioElement = document.getElementById(`audio-${callId}`);
     const call = callLogs.find(c => c._id === callId);
 
@@ -199,7 +203,7 @@ const CallLogs = () => {
         setPlayingAudio(prev => ({ ...prev, [callId]: true }));
       }
     }
-  };
+  }, [callLogs, playingAudio]);
 
   return (
     <DashboardLayout>
@@ -269,7 +273,10 @@ const CallLogs = () => {
                 className="input"
                 style={{ width: '80px', padding: '8px' }}
                 value={pageSize}
-                onChange={(e) => setPageSize(parseInt(e.target.value))}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value));
+                  setPage(1); // Reset to first page
+                }}
               >
                 <option value={25}>25</option>
                 <option value={50}>50</option>
@@ -428,7 +435,7 @@ const CallLogs = () => {
                 </div>
 
                 {/* Empty State or Call Logs */}
-                {paginatedCallLogs.length === 0 ? (
+                {filteredCallLogs.length === 0 ? (
                   <EmptyState
                     icon={faClipboardList}
                     title="No call logs yet"
@@ -438,7 +445,7 @@ const CallLogs = () => {
                   />
                 ) : (
                   /* Call Logs List */
-                  paginatedCallLogs.map((call) => (
+                  filteredCallLogs.map((call) => (
                     <div key={call._id} style={{
                       display: 'grid',
                       gridTemplateColumns: '1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 1fr',
@@ -596,6 +603,39 @@ const CallLogs = () => {
                 )}
               </div>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div style={{
+                padding: '20px 30px',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ color: '#999', fontSize: '14px' }}>
+                  Showing page {page} of {totalPages} ({totalRecords} total records)
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="btn btn-secondary"
+                    style={{ opacity: page === 1 ? 0.5 : 1 }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="btn btn-secondary"
+                    style={{ opacity: page === totalPages ? 0.5 : 1 }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -761,4 +801,4 @@ const CallLogs = () => {
   );
 };
 
-export default CallLogs;
+export default React.memo(CallLogs);

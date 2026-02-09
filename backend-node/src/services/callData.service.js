@@ -4,6 +4,7 @@
  */
 class CallDataService {
   constructor() {
+    this.MAX_CALLS = 1000;
     this.activeCalls = new Map();
   }
 
@@ -11,6 +12,10 @@ class CallDataService {
    * Store call data when call is initiated
    */
   storeCallData(callSid, callData) {
+    if (this.activeCalls.size >= this.MAX_CALLS) {
+      const firstKey = this.activeCalls.keys().next().value;
+      this.activeCalls.delete(firstKey);
+    }
     this.activeCalls.set(callSid, {
       ...callData,
       conversationHistory: [],

@@ -1,4 +1,5 @@
 const CallLog = require('../models/CallLog.model');
+const mongoose = require('mongoose');
 
 // Get call logs with pagination (company-specific)
 const getCallLogs = async (req, res) => {
@@ -10,12 +11,20 @@ const getCallLogs = async (req, res) => {
     // Filter by authenticated user's companyId
     const companyId = req.user.companyId;
 
-    const callLogs = await CallLog.find({ companyId })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const [result] = await CallLog.aggregate([
+      { $match: { companyId: new mongoose.Types.ObjectId(companyId) } },
+      { $facet: {
+        data: [
+          { $sort: { createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limit }
+        ],
+        total: [{ $count: 'count' }]
+      }}
+    ]);
 
-    const total = await CallLog.countDocuments({ companyId });
+    const callLogs = result.data;
+    const total = result.total[0]?.count || 0;
 
     res.json({
       success: true,
@@ -30,6 +39,7 @@ const getCallLogs = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Error fetching call logs:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch call logs',
