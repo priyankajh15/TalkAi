@@ -481,11 +481,11 @@ async function generateContextualResponse(userResponse, callData) {
     
     const response = await Promise.race([
       axios.post(`${AI_BACKEND_URL}/voice/voice-response`, requestData, {
-        timeout: 3000,
+        timeout: 8000,
         headers: { 'Content-Type': 'application/json' }
       }),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 3000)
+        setTimeout(() => reject(new Error('Timeout')), 8000)
       )
     ]);
     
