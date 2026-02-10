@@ -341,13 +341,13 @@ exports.handleVoiceResponse = async (req, res) => {
         
         const aiResponse = await generateContextualResponse(userResponse, enhancedCallData);
       
-        console.log('AI response generated:', aiResponse.substring(0, 100) + '...');
+        console.log('AI response generated:', aiResponse.ai_response?.substring(0, 100) + '...');
         
         // Store conversation exchange in memory
         callDataService.addConversationExchange(
           CallSid, 
           userResponse, 
-          aiResponse,
+          aiResponse.ai_response,
           callData.voiceSettings?.language || 'auto'
         );
         
@@ -357,7 +357,15 @@ exports.handleVoiceResponse = async (req, res) => {
         twiml.say({
           voice: selectedVoice.voice,
           language: selectedVoice.language
-        }, aiResponse);
+        }, aiResponse.ai_response);
+
+        // Check if call should end (abusive or goodbye)
+        if (aiResponse.should_end_call) {
+          console.log('Ending call due to abusive content or goodbye');
+          twiml.hangup();
+          res.type('text/xml');
+          return res.send(twiml.toString());
+        }
 
         // Check conversation count for natural escalation
         const conversationCount = callDataService.getConversationCount(CallSid);
@@ -503,7 +511,10 @@ async function generateContextualResponse(userResponse, callData) {
       }
     }
     
-    return response.data.ai_response;
+    return { 
+      ai_response: response.data.ai_response,
+      should_end_call: response.data.abusive_detected || response.data.goodbye_detected
+    };
     
   } catch (error) {
     console.error('AI backend request failed:', error.message);
@@ -516,7 +527,7 @@ async function generateContextualResponse(userResponse, callData) {
       ekta: "Thank you for your inquiry. Our cloud solutions offer exceptional value. May I connect you with our technical team?",
       priyanka: "From a technical perspective, our cloud infrastructure can benefit your business. Shall I connect you with our solutions architect?"
     };
-    return fallbacks[personality] || fallbacks.priyanshu;
+    return { ai_response: fallbacks[personality] || fallbacks.priyanshu, should_end_call: false };
   }
 }
 

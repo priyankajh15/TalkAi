@@ -273,17 +273,20 @@ class DynamicIntentClassifier:
                     'bye', 'goodbye', 'good bye', 'later', 'talk later', 'enough',
                     'sufficient', 'no thanks', 'not interested', 'dont want', 
                     'stop', 'band', 'karo', 'ruko', 'chaliye', 'rakhdo',
-                    'nahi chahiye', 'nahi', 'nahin', 'thik', 'okay bye', 'ok bye'
+                    'nahi chahiye', 'nahi', 'nahin', 'thik', 'okay bye', 'ok bye',
+                    'bye bye', 'byebye', 'tata', 'see you', 'gotta go', 'have to go'
                 ],
                 'phrases': [
                     'no thank', 'not interest', 'talk later', 'call later',
                     'nahi chahiye', 'band karo', 'enough information', 'thik hai bye',
                     'all set', 'i am good', 'thanks but', 'not now', 'maybe later',
-                    'bas ho gaya', 'bas bas', 'rakh do phone'
+                    'bas ho gaya', 'bas bas', 'rakh do phone', 'thank you bye',
+                    'thanks bye', 'thank you so much', 'thanks so much', 'bye bye',
+                    'no no thank', 'thats all', 'that is all', 'im done', 'i am done'
                 ],
                 'negative_context': ['yes', 'tell me', 'interested', 'haan', 'continue'],
-                'weight': 2.5,  # INCREASED weight for better goodbye detection
-                'confidence_threshold': 0.55  # LOWERED threshold for easier detection
+                'weight': 3.0,
+                'confidence_threshold': 0.45
             },
             'services': {
                 'keywords': [
@@ -743,7 +746,7 @@ class LightweightAIEngine:
             logger.info(f"Intent: {intent} (confidence: {intent_confidence:.2f})")
             
             # Step 7: CRITICAL - Handle goodbye detection FIRST (before any other processing)
-            if intent == 'goodbye' and intent_confidence > 0.55:
+            if intent == 'goodbye' and intent_confidence >= 0.45:
                 logger.info(f" GOODBYE DETECTED - Ending conversation gracefully")
                 return {
                     'ai_response': self._get_goodbye_response(language, personality),
