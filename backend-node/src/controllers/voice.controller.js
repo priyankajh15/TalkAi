@@ -53,9 +53,9 @@ exports.makeVoiceCall = async (req, res) => {
       const companyKnowledge = await KnowledgeBase.find({
         companyId: req.user?.companyId,
         isActive: true,
-        useInCalls: true, // Only get PDFs marked for voice calls
-        content: { $not: /Text extraction failed/ } // Exclude failed extractions
-      }).select('title chunks category');
+        useInCalls: true,
+        content: { $not: /Text extraction failed/ }
+      }).select('title chunks content category');
       
       knowledgeBase = companyKnowledge.flatMap(kb => 
         (kb.chunks || [kb.content]).map((chunk, i) => ({
