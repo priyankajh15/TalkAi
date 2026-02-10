@@ -237,7 +237,8 @@ const DashboardLayout = ({ children }) => {
         minHeight: '100vh',
         transition: 'margin-left 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)',
         width: isMobile ? '100%' : 'auto',
-        paddingTop: scrolled ? '50px' : '60px' // Account for fixed header
+        paddingTop: scrolled ? '50px' : '60px',
+        overflow: 'hidden' // Prevent content from going under sidebar
       }}>
         {/* Header with Hamburger - Mobile Only */}
         <div style={{

@@ -119,7 +119,7 @@ const Analytics = () => {
       </div>
 
       {/* Date Range & Bot Selection */}
-      <div className="glass" style={{ padding: '30px', marginBottom: '30px', position: 'relative', zIndex: 100, overflow: 'visible' }}>
+      <div className="glass" style={{ padding: '30px', marginBottom: '30px', position: 'relative', zIndex: 10, overflow: 'visible' }}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button 
