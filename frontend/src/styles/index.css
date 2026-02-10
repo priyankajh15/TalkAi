@@ -180,3 +180,61 @@ select.input option:hover {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
+
+/* Dark theme for react-datepicker */
+.react-datepicker {
+  background-color: #1a1a1a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+.react-datepicker__header {
+  background-color: #222 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name {
+  color: #fff !important;
+}
+
+.react-datepicker__day {
+  color: #999 !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: rgba(102, 126, 234, 0.2) !important;
+  color: #fff !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--in-range,
+.react-datepicker__day--in-selecting-range {
+  background-color: #667eea !important;
+  color: #fff !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+.react-datepicker__day--disabled {
+  color: #444 !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: #999 !important;
+}
+
+.react-datepicker__navigation:hover *::before {
+  border-color: #fff !important;
+}
+
+/* Datepicker z-index fix */
+.datepicker-popper {
+  z-index: 9999 !important;
+}
+
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}

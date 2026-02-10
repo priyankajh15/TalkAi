@@ -13,6 +13,7 @@ const KnowledgeBaseSchema = new mongoose.Schema(
     title: { type: String },
     content: { type: String, required: true },
     chunks: [{ type: String }],
+    fileSize: { type: Number, default: 0 },
 
     isActive: { type: Boolean, default: true, index: true },
     useInCalls: { type: Boolean, default: true, index: true },

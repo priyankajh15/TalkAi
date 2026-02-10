@@ -219,6 +219,7 @@ exports.uploadPDF = async (req, res, next) => {
       content: pdfText,
       chunks: chunkContent(pdfText, 1500),
       category: 'pdf',
+      fileSize: req.file.size,
       useInCalls: !extractionFailed,
       extractionFailed: extractionFailed
     });

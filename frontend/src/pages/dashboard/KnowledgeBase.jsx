@@ -25,11 +25,11 @@ const KnowledgeBase = () => {
     try {
       const response = await aiAPI.getKnowledgeFiles();
       const files = response.data.data
-        .filter(file => !file.extractionFailed) // Hide failed PDFs from user
+        .filter(file => !file.extractionFailed)
         .map(file => ({
           id: file._id,
           name: file.title,
-          size: (file.content.length / 1024 / 1024).toFixed(2) + ' MB',
+          size: file.fileSize ? (file.fileSize / 1024 / 1024).toFixed(2) + ' MB' : '0.00 MB',
           uploadedAt: file.createdAt,
           status: 'processed',
           type: file.category === 'website' ? 'website' : 'pdf',
@@ -165,14 +165,25 @@ const KnowledgeBase = () => {
               0%, 100% { opacity: 1; }
               50% { opacity: 0.5; }
             }
+            
+            @media (max-width: 640px) {
+              .file-item {
+                flex-direction: column !important;
+                align-items: stretch !important;
+              }
+              .file-actions {
+                justify-content: space-between !important;
+                width: 100% !important;
+              }
+            }
           `}
         </style>
         {/* Header */}
-        <div style={{ marginBottom: '40px' }}>
-          <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '600' }}>
+        <div style={{ marginBottom: 'clamp(20px, 5vw, 40px)' }}>
+          <h1 style={{ fontSize: 'clamp(24px, 5vw, 32px)', marginBottom: '8px', fontWeight: '600' }}>
             Knowledge Base
           </h1>
-          <p style={{ color: '#999', fontSize: '16px' }}>
+          <p style={{ color: '#999', fontSize: 'clamp(14px, 3vw, 16px)' }}>
             Upload PDFs and add website content to enhance your AI assistant's knowledge
           </p>
         </div>
@@ -202,7 +213,7 @@ const KnowledgeBase = () => {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 'clamp(12px, 3vw, 20px)' }}>
           {/* PDF Upload Section */}
           <div className="glass" style={{ padding: '20px' }}>
             <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>Upload PDFs</h3>
@@ -386,42 +397,44 @@ const KnowledgeBase = () => {
             ) : (
               <div style={{ display: 'grid', gap: '15px' }}>
                 {files.map((file) => (
-                  <div key={file.id} style={{
+                  <div key={file.id} className="file-item" style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '15px',
+                    padding: 'clamp(12px, 3vw, 15px)',
                     backgroundColor: 'rgba(255,255,255,0.05)',
                     borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.1)'
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    gap: '12px'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
                       <FontAwesomeIcon 
                         icon={file.type === 'website' ? faGlobe : faFile} 
-                        style={{ color: '#667eea', fontSize: '20px' }} 
+                        style={{ color: '#667eea', fontSize: '20px', flexShrink: 0 }} 
                       />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '500', marginBottom: '4px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: '500', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {file.name}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#999' }}>
+                        <div style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {file.size} • Uploaded {new Date(file.uploadedAt).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="file-actions" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 12px)', flexShrink: 0 }}>
                       <label style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
                         cursor: 'pointer',
-                        fontSize: '13px',
+                        fontSize: 'clamp(12px, 2.5vw, 13px)',
                         color: file.useInCalls ? '#10b981' : '#999',
-                        padding: '6px 12px',
+                        padding: 'clamp(4px, 1vw, 6px) clamp(8px, 2vw, 12px)',
                         borderRadius: '6px',
                         backgroundColor: file.useInCalls ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)',
                         border: `1px solid ${file.useInCalls ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.1)'}`,
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        whiteSpace: 'nowrap'
                       }}>
                         <input
                           type="checkbox"

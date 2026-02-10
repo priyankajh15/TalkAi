@@ -126,7 +126,14 @@ export const aiAPI = {
     api.delete(`/knowledge/${fileId}`),
 
   toggleUseInCalls: (fileId, useInCalls) =>
-    api.patch(`/knowledge/${fileId}/toggle-calls`, { useInCalls })
+    api.patch(`/knowledge/${fileId}/toggle-calls`, { useInCalls }),
+
+  // Analytics functions
+  getAnalytics: (days, botName) =>
+    api.get('/analytics', { params: { days, botName } }),
+
+  getLastCallTime: () =>
+    api.get('/analytics/last-call')
 };
 
 // Voice API functions

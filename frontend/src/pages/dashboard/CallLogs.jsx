@@ -75,6 +75,21 @@ const CallLogs = () => {
       if (filters.status === 'human' && call.handledBy !== 'Human') return false;
     }
 
+    // Channel Type filter (inbound/outbound)
+    if (filters.channelType !== 'all') {
+      // Assuming callerNumber starting with company number means outbound
+      const isOutbound = call.callerNumber?.includes('+18648104203');
+      if (filters.channelType === 'outbound' && !isOutbound) return false;
+      if (filters.channelType === 'inbound' && isOutbound) return false;
+    }
+
+    // Call Transferred filter
+    if (filters.transferred !== 'all') {
+      const wasTransferred = call.escalationReason || call.handledBy === 'Human';
+      if (filters.transferred === 'yes' && !wasTransferred) return false;
+      if (filters.transferred === 'no' && wasTransferred) return false;
+    }
+
     // Duration filters
     if (filters.minDuration && call.duration < parseInt(filters.minDuration)) return false;
     if (filters.maxDuration && call.duration > parseInt(filters.maxDuration)) return false;

@@ -164,7 +164,7 @@ class LightweightSentimentAnalyzer:
         self.abusive_words = {
             'english': [
                 # Severe profanity
-                'fuck', 'fck', 'fuk', 'f**k', 'f*ck', 'fucker', 'fucking', 'fucked',
+                'fuck', 'fck', 'fuk', 'f**k', 'f*ck', 'f***', 'fucker', 'fucking', 'fucked',
                 'shit', 'sh1t', 'sht', 'shít', 'shitty',
                 'bastard', 'bstrd', 'bastrd',
                 'bitch', 'btch', 'b1tch', 'biatch',
