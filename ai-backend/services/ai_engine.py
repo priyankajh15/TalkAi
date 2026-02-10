@@ -445,36 +445,136 @@ class DynamicIntentClassifier:
             return 'question', 0.5, all_scores
 
 class SmartKBExtractor:
-    """ FIXED: Extract relevant info from ANY knowledge base (not just cricket PDF)"""
+    """IMPROVED: Dynamic extraction that adapts to question complexity"""
     
     @staticmethod
-    def extract_relevant_answer(question: str, kb_content: str, max_sentences: int = 1) -> str:
-        """Extract most relevant sentences from KB based on question"""
+    def _analyze_question_complexity(question: str) -> dict:
+        """
+        Analyze question to determine how much detail is needed
+        
+        Returns:
+            dict: {
+                'complexity': 'simple' | 'moderate' | 'detailed',
+                'max_sentences': int,
+                'max_chars': int
+            }
+        """
+        question_lower = question.lower()
+        
+        # Simple questions - need SHORT answers (1 sentence, ~100 chars)
+        simple_patterns = [
+            'what is', 'who is', 'when is', 'where is',
+            'kya hai', 'kaun hai', 'kab hai', 'kahan hai',
+            'yes or no', 'true or false',
+            'how many', 'kitne', 'kitna'
+        ]
+        
+        # Detailed questions - need LONGER answers (3 sentences, ~200 chars)
+        detailed_patterns = [
+            'explain', 'describe', 'tell me about', 'how does',
+            'what are the steps', 'give me details', 'elaborate',
+            'samjhao', 'batao detail', 'kaise kaam',
+            'differences between', 'compare', 'contrast',
+            'advantages', 'disadvantages', 'pros and cons'
+        ]
+        
+        # List questions - need MULTIPLE points (2-3 sentences, ~180 chars)
+        list_patterns = [
+            'list', 'types', 'kinds', 'examples',
+            'what all', 'which are', 'give me',
+            'highlights', 'points', 'features',
+            'prakar', 'types kya'
+        ]
+        
+        # Check for detailed questions FIRST
+        if any(pattern in question_lower for pattern in detailed_patterns):
+            return {
+                'complexity': 'detailed',
+                'max_sentences': 3,
+                'max_chars': 200,
+                'reason': 'User asked for explanation/details'
+            }
+        
+        # Check for list questions
+        if any(pattern in question_lower for pattern in list_patterns):
+            return {
+                'complexity': 'moderate',
+                'max_sentences': 2,
+                'max_chars': 180,
+                'reason': 'User asked for list/highlights'
+            }
+        
+        # Check for simple questions
+        if any(pattern in question_lower for pattern in simple_patterns):
+            return {
+                'complexity': 'simple',
+                'max_sentences': 1,
+                'max_chars': 120,
+                'reason': 'User asked simple question'
+            }
+        
+        # Default: moderate complexity
+        return {
+            'complexity': 'moderate',
+            'max_sentences': 2,
+            'max_chars': 160,
+            'reason': 'General question'
+        }
+    
+    @staticmethod
+    def extract_relevant_answer(question: str, kb_content: str, max_sentences: int = None) -> str:
+        """
+        DYNAMIC: Automatically determines optimal sentence count based on question
+        
+        Args:
+            question: User's question
+            kb_content: Knowledge base content to search
+            max_sentences: Optional override (if None, auto-detected)
+        
+        Returns:
+            Relevant answer with appropriate length
+        """
         if not kb_content or not question:
             return ""
         
-        # Split KB into sentences
-        sentences = re.split(r'[.!?]+', kb_content)
-        sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
+        # DYNAMIC: Analyze question complexity
+        complexity_info = SmartKBExtractor._analyze_question_complexity(question)
+        
+        # Use provided max_sentences or auto-detected value
+        if max_sentences is None:
+            max_sentences = complexity_info['max_sentences']
+            max_chars = complexity_info['max_chars']
+        else:
+            # If manually overridden, use standard limits
+            max_chars = min(max_sentences * 80, 200)
+        
+        logger.info(f"Question complexity: {complexity_info['complexity']} "
+                   f"(max_sentences={max_sentences}, max_chars={max_chars})")
+        logger.debug(f"   Reason: {complexity_info['reason']}")
+        
+        # Split into proper sentences
+        sentences = re.split(r'(?<=[.!?])\s+', kb_content)
+        sentences = [s.strip() for s in sentences if len(s.strip()) > 15]
         
         if not sentences:
-            return kb_content[:300] + "..."
+            return kb_content[:max_chars].strip() + "..."
         
         # Extract question keywords
         question_lower = question.lower()
         question_words = question_lower.split()
         
-        # Remove stop words
         stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
                       'of', 'with', 'is', 'are', 'was', 'were', 'what', 'how', 'when', 
                       'where', 'why', 'who', 'which', 'tell', 'me', 'about', 'your', 
-                      'kya', 'hai', 'kaise', 'batao'}
+                      'kya', 'hai', 'kaise', 'batao', 'give', 'get', 'any', 'some'}
         
         keywords = [w for w in question_words if len(w) > 3 and w not in stop_words]
         
         if not keywords:
-            # Return first 2-3 sentences if no keywords
-            return ' '.join(sentences[:max_sentences])
+            first_sentence = sentences[0]
+            if len(first_sentence) > max_chars:
+                return first_sentence[:max_chars - 3].strip() + "..."
+            return first_sentence
         
         # Score each sentence by relevance
         scored_sentences = []
@@ -487,7 +587,7 @@ class SmartKBExtractor:
                 if keyword in sentence_lower:
                     score += 2
             
-            # Partial matches (for longer words)
+            # Partial matches
             for keyword in keywords:
                 if len(keyword) > 4:
                     sentence_words = sentence_lower.split()
@@ -495,21 +595,52 @@ class SmartKBExtractor:
                         if keyword in word or word in keyword:
                             score += 1
             
-            # Bonus for earlier sentences (context usually at beginning)
-            position_bonus = max(0, 5 - idx)
+            # Position bonus (earlier sentences often have key info)
+            position_bonus = max(0, 3 - idx)
             score += position_bonus
             
-            scored_sentences.append((score, sentence))
+            scored_sentences.append((score, sentence, idx))
         
-        # Sort by score and get top sentences
+        # Sort by relevance score
         scored_sentences.sort(reverse=True, key=lambda x: x[0])
-        top_sentences = [sent for score, sent in scored_sentences[:max_sentences] if score > 0]
+        
+        # Build result dynamically based on complexity
+        top_sentences = []
+        total_length = 0
+        
+        for score, sentence, idx in scored_sentences:
+            if score > 0 and len(top_sentences) < max_sentences:
+                sentence_length = len(sentence)
+                
+                # Check if adding this sentence exceeds character limit
+                if total_length + sentence_length > max_chars:
+                    remaining_space = max_chars - total_length
+                    if remaining_space > 30:  # Only add if meaningful space left
+                        truncated = sentence[:remaining_space - 3].strip() + "..."
+                        top_sentences.append((idx, truncated))
+                    break
+                
+                top_sentences.append((idx, sentence))
+                total_length += sentence_length
         
         if not top_sentences:
-            # Fallback to first sentences
-            return ' '.join(sentences[:max_sentences])
+            # Fallback to first sentence
+            first_sentence = sentences[0]
+            if len(first_sentence) > max_chars:
+                return first_sentence[:max_chars - 3].strip() + "..."
+            return first_sentence
         
-        return ' '.join(top_sentences)
+        # Sort by original order and join
+        top_sentences.sort(key=lambda x: x[0])
+        result = ' '.join([sent for _, sent in top_sentences])
+        
+        # Final safety check
+        if len(result) > max_chars:
+            result = result[:max_chars - 3].strip() + "..."
+        
+        logger.info(f"Extracted {len(top_sentences)} sentence(s), {len(result)} chars")
+        
+        return result
 
 class LightweightAIEngine:
     """Main AI engine with all features"""
@@ -793,8 +924,8 @@ class LightweightAIEngine:
     ) -> str:
         """ FIXED: Generate intelligent answer from KB (works with ANY PDF type)"""
         
-        #  Extract relevant sentences (not word-by-word reading)
-        relevant_answer = SmartKBExtractor.extract_relevant_answer(user_question, kb_content, max_sentences=1)
+        #  Extract relevant sentences with DYNAMIC complexity detection
+        relevant_answer = SmartKBExtractor.extract_relevant_answer(user_question, kb_content)
         
         if not relevant_answer:
             return self._get_no_info_response(language, personality)
