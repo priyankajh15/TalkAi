@@ -537,10 +537,10 @@ async function generateContextualResponse(userResponse, callData) {
 function getVoiceForPersonality(personality) {
   // Twilio Polly voices format: 'Polly.VoiceName'
   const voiceMap = {
-    priyanshu: { voice: 'Polly.Matthew', language: 'en-US' },   // Male, Professional
-    tanmay: { voice: 'Polly.Joey', language: 'en-US' },         // Male, Energetic
-    ekta: { voice: 'Polly.Aditi', language: 'en-IN' },          // Female, Indian
-    priyanka: { voice: 'Polly.Raveena', language: 'en-IN' }     // Female, Indian
+    priyanshu: { voice: 'Polly.Joey', language: 'en-US' },      // Male, Professional
+    tanmay: { voice: 'Polly.Matthew', language: 'en-US' },      // Male, Energetic
+    ekta: { voice: 'Polly.Raveena', language: 'en-IN' },        // Female, Indian
+    priyanka: { voice: 'Polly.Aditi', language: 'en-IN' }       // Female, Indian
   };
   
   return voiceMap[personality] || voiceMap.priyanshu;

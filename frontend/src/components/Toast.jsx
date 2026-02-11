@@ -30,7 +30,7 @@ const Toast = ({ toast, onRemove }) => {
   useEffect(() => {
     const timer = setTimeout(() => onRemove(toast.id), 4000);
     return () => clearTimeout(timer);
-  }, [toast.id, onRemove]);
+  }, [toast.id, toast.timestamp, onRemove]);
 
   return (
     <div
@@ -41,22 +41,23 @@ const Toast = ({ toast, onRemove }) => {
         border: `1px solid ${colors[toast.type]}30`,
         borderLeft: `4px solid ${colors[toast.type]}`,
         borderRadius: '8px',
-        padding: '16px',
-        marginBottom: '12px',
+        padding: '12px 16px',
+        marginBottom: '10px',
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        minWidth: '300px',
-        maxWidth: '500px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-        animation: 'slideIn 0.3s ease-out'
+        width: '320px',
+        maxWidth: '90vw',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+        animation: 'slideIn 0.3s ease-out',
+        wordBreak: 'break-word'
       }}
     >
       <FontAwesomeIcon 
         icon={icons[toast.type]} 
         style={{ color: colors[toast.type], fontSize: '16px' }}
       />
-      <span style={{ flex: 1, fontSize: '14px' }}>{toast.message}</span>
+      <span style={{ flex: 1, fontSize: '14px', lineHeight: '1.4' }}>{toast.message}</span>
       <button
         onClick={() => onRemove(toast.id)}
         style={{
@@ -80,7 +81,23 @@ export const Toaster = () => {
   useEffect(() => {
     addToast = ({ type, message }) => {
       const id = ++toastId;
-      setToasts(prev => [...prev, { id, type, message }]);
+      
+      // Check if same message already exists
+      setToasts(prev => {
+        const existingToast = prev.find(t => t.message === message && t.type === type);
+        
+        if (existingToast) {
+          // Update existing toast (reset timer)
+          return prev.map(t => 
+            t.id === existingToast.id 
+              ? { ...t, id: ++toastId, timestamp: Date.now() } 
+              : t
+          );
+        }
+        
+        // Add new toast
+        return [...prev, { id, type, message, timestamp: Date.now() }];
+      });
     };
     
     return () => {
