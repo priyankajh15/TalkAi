@@ -14,8 +14,23 @@ const API_ENDPOINTS = {
   }
 };
 
+// Auto-detect based on hostname
+const getInitialEndpoint = () => {
+  if (typeof window === 'undefined') return 'backup';
+  
+  const hostname = window.location.hostname;
+  
+  // If deployed on Vercel with Fly.io backends ready
+  if (hostname.includes('vercel.app') && import.meta.env.VITE_USE_FLY === 'true') {
+    return 'primary';
+  }
+  
+  // Default to Render (backup)
+  return 'backup';
+};
+
 // Track which endpoint is currently working
-let currentEndpoint = 'primary';
+let currentEndpoint = getInitialEndpoint();
 let failureCount = 0;
 const MAX_FAILURES = 2;
 
@@ -30,13 +45,11 @@ export const getBaseURL = () => {
 };
 
 export const switchToBackup = () => {
-  console.warn('🔄 Switching to backup server (Render)...');
   currentEndpoint = 'backup';
   failureCount = 0;
 };
 
 export const switchToPrimary = () => {
-  console.log('✅ Switching back to primary server (Fly.io)...');
   currentEndpoint = 'primary';
   failureCount = 0;
 };

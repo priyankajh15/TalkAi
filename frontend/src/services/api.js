@@ -94,7 +94,6 @@ api.interceptors.response.use(
         // Update baseURL and retry
         error.config._retry = true;
         error.config.baseURL = `${getBaseURL()}/api/v1`;
-        console.log(`🔄 Retrying with ${getCurrentEndpoint()} server...`);
         return api.request(error.config);
       }
     }
@@ -162,8 +161,6 @@ export const voiceAPI = {
   makeCall: async (callData) => {
     const baseURL = getBaseURL();
     const token = localStorage.getItem('token');
-    console.log('Making call to:', baseURL, `(${getCurrentEndpoint()})`);
-    console.log('Token present:', !!token);
 
     try {
       return await axios.post(`${baseURL}/api/voice/make-call`, callData, {
@@ -176,7 +173,6 @@ export const voiceAPI = {
     } catch (error) {
       // Try backup if primary fails
       if (getCurrentEndpoint() === 'primary' && !error.config?._retry) {
-        console.warn('Primary failed, trying backup...');
         switchToBackup();
         
         return axios.post(`${getBaseURL()}/api/voice/make-call`, callData, {
